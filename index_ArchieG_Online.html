@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Archie的每日任務追蹤_←═╪ Blue°Eyes ═╪</title>
+    <style>
+        /* === 科技電競風 全局設定 === */
+        :root {
+            --bg-dark: #090a0f;
+            --panel-bg: #12131a;
+            --tech-green: #00e676;
+            --tech-green-dim: rgba(0, 230, 118, 0.2);
+            --tech-cyan: #00b0ff;
+            --text-main: #e0e0e0;
+            --border-color: #262938;
+        }
+
+        @keyframes inner-glow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, '微軟正黑體', sans-serif; 
+            background-color: var(--bg-dark);
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 20px; 
+            height: 100vh; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        h2 { 
+            margin: 0 0 15px 5px; 
+            color: #fff; 
+            font-size: 28px; 
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 176, 255, 0.3), 0 0 20px rgba(0, 176, 255, 0.2);
+            border-left: 5px solid var(--tech-cyan);
+            padding-left: 15px;
+            z-index: 10;
+        }
+        h2 span { 
+            color: var(--tech-cyan); 
+            text-shadow: 0 0 8px rgba(0, 176, 255, 0.6);
+        }
+
+        /* === 左右雙面板排版 === */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid #3a3f58;
+            overflow: hidden; 
+            z-index: 10;
+        }
+
+        /* === 左側：地圖區 === */
+        .map-pane {
+            flex: 1;
+            position: relative; 
+            background-color: #000;
+            border-right: 2px solid #2a2e40;
+            overflow: hidden; 
+            box-shadow: inset -5px 0 15px rgba(0,0,0,0.5); 
+        }
+
+        .map-scroll-area {
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            position: relative;
+        }
+
+        #map-container {
+            position: relative;
+            background-image: url('map_background.jpg');
+            background-size: cover;
+            width: 1348px;
+            height: 741px;
+        }
+
+        /* 任務欄收合切換按鈕 */
+        .panel-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 80px;
+            background: rgba(0, 176, 255, 0.15);
+            border: 1px solid var(--tech-cyan);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            color: var(--tech-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 500;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s ease;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+            font-size: 14px;
+        }
+        .panel-toggle-btn:hover {
+            background: rgba(0, 176, 255, 0.4);
+            color: #fff;
+            width: 30px;
+        }
+
+        /* === 智慧邊緣雷達 === */
+        .offscreen-indicator {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(255, 120, 0, 0.95), rgba(200, 50, 0, 0.95));
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: bold;
+            pointer-events: none; 
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 150;
+            box-shadow: 0 4px 15px rgba(255, 120, 0, 0.6), inset 0 1px 1px rgba(255,255,255,0.4);
+            border: 1px solid rgba(255, 200, 100, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .top-indicator { top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px); }
+        .bottom-indicator { bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); }
+        .left-indicator { top: 50%; left: 20px; transform: translateY(-50%) translateX(-20px); }
+        .right-indicator { top: 50%; right: 20px; transform: translateY(-50%) translateX(20px); }
+        .top-indicator.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .bottom-indicator.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .left-indicator.visible { opacity: 1; transform: translateY(-50%) translateX(0); }
+        .right-indicator.visible { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+        /* === 右下角：升級預測與戰術指揮面板 === */
+        #global-progress {
+            position: absolute;
+            bottom: 30px;
+            right: 40px; 
+            width: 380px;
+            background: linear-gradient(135deg, #161a27, #1e2436, #121520, #191f30);
+            background-size: 300% 300%;
+            animation: inner-glow 5s ease infinite;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--tech-cyan);
+            border-bottom: 4px solid var(--tech-cyan); 
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(0, 176, 255, 0.15);
+            z-index: 200; 
+            font-size: 14px;
+        }
+        
+        .progress-header-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 176, 255, 0.3);
+            transition: color 0.2s;
+        }
+        .progress-header-toggle:hover { color: var(--tech-cyan); }
+        .progress-title { font-size: 16px; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; margin: 0;}
+        #progress-text { color: var(--tech-cyan); text-shadow: 0 0 8px rgba(0,176,255,0.4); font-size: 16px; font-weight: bold; }
+        
+        #prediction-content {
+            display: none;
+            margin-top: 12px;
+            padding-top: 4px;
+            border-top: 1px dashed rgba(255,255,255,0.1);
+        }
+
+        .pred-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 6px;
+        }
+        .pred-label { color: #a1a1aa; font-weight: 500; }
+        .pred-value { color: #fff; font-weight: bold; text-align: right; }
+        
+        .editable-input {
+            background: #ffe600;
+            color: #000;
+            border: 1px solid #cca300;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            width: 120px;
+            outline: none;
+        }
+        .editable-input:focus { box-shadow: 0 0 8px rgba(255,230,0,0.8); }
+
+        .progress-bar-container { width: 100%; height: 12px; background: #0a0b10; border-radius: 6px; overflow: hidden; border: 1px solid #444; margin: 12px 0 6px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);}
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #00b0ff, #00e676); width: 0%; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px var(--tech-cyan); }
+        
+        .progress-footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .batch-controls { display: flex; gap: 10px; margin-top: 10px; }
+        .hud-btn {
+            flex: 1; padding: 8px 0; font-size: 13px; font-weight: bold; text-align: center; cursor: pointer; border-radius: 4px; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+        .btn-reset {
+            background: linear-gradient(180deg, rgba(255, 71, 87, 0.15) 0%, rgba(255, 71, 87, 0.05) 100%);
+            color: #ff4757; border: 1px solid rgba(255, 71, 87, 0.6);
+        }
+        .btn-reset:hover { background: rgba(255, 71, 87, 0.3); }
+        .btn-complete {
+            background: linear-gradient(180deg, rgba(0, 230, 118, 0.15) 0%, rgba(0, 230, 118, 0.05) 100%);
+            color: var(--tech-green); border: 1px solid rgba(0, 230, 118, 0.6);
+        }
+        .btn-complete:hover { background: rgba(0, 230, 118, 0.3); }
+
+        /* === 右側：表格區 === */
+        .table-pane {
+            width: 460px; 
+            background: linear-gradient(135deg, #13151f, #1b2030, #10131c, #171c2b);
+            background-size: 300% 300%;
+            animation: inner-glow 6s ease infinite;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        .table-pane.collapsed {
+            width: 0px;
+            opacity: 0;
+            border: none;
+        }
+
+        #task-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 16px; white-space: nowrap; }
+        #task-table th { background-color: #0d0f16; color: var(--tech-cyan); font-weight: 700; padding: 12px 4px; text-align: center; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--tech-cyan); letter-spacing: 1px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); font-size: 15px;}
+        #task-table td { padding: 10px 4px; text-align: center; vertical-align: middle; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        #task-table tbody tr { transition: background-color 0.2s ease; }
+        #task-table tbody tr:hover { filter: brightness(1.3); }
+        .table-task-name { text-align: left !important; font-weight: 500; color: #fff; line-height: 1.3; }
+        .region-cell { font-weight: bold; color: #8892b0; border-right: 1px solid rgba(255,255,255,0.03); }
+        .exp-cell { color: #00e676; font-family: monospace; font-size: 14px; font-weight: bold; }
+
+        .status-badge {
+            display: inline-block; padding: 5px 8px; border-radius: 4px; font-size: 14px; font-weight: 700; color: white; cursor: pointer; user-select: none; transition: all 0.2s ease; width: 65px; white-space: nowrap;
+            background-image: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 100%);
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .status-badge:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0b10; border-left: 1px solid #1a1d28;}
+        ::-webkit-scrollbar-thumb { background: #3a3f58; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--tech-cyan); }
+
+        /* === 地圖任務標記 === */
+        .node-container { position: absolute; }
+        
+        @keyframes marker-pulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.15); filter: brightness(1.5); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        @keyframes group-pulse {
+            0% { box-shadow: 0 0 8px rgba(0, 176, 255, 0.4), inset 0 0 5px rgba(0, 176, 255, 0.2); border-color: rgba(0, 176, 255, 0.5); }
+            50% { box-shadow: 0 0 22px rgba(0, 176, 255, 0.95), inset 0 0 10px rgba(0, 176, 255, 0.5); border-color: rgba(0, 176, 255, 1); }
+            100% { box-shadow: 0 0 8px rgba(0, 176, 255, 0.4), inset 0 0 5px rgba(0, 176, 255, 0.2); border-color: rgba(0, 176, 255, 0.5); }
+        }
+
+        .single-marker { 
+            width: 38px; height: 38px; background: transparent; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s; 
+            animation: marker-pulse 1s infinite ease-in-out;
+            font-size: 32px; line-height: 1;
+            text-shadow: 0 0 2px #fff, 0 0 6px #fff, 0 0 12px currentColor, 0 0 20px currentColor, 0 0 4px #000; 
+        }
+        .single-marker:hover { transform: scale(1.4) !important; z-index: 10; animation: none; filter: brightness(1.6); }
+        
+        .group-marker { 
+            width: 48px; height: 48px; 
+            background: linear-gradient(135deg, rgba(10, 15, 30, 0.95), rgba(15, 20, 35, 0.95)); 
+            border: 2px solid var(--tech-cyan); border-radius: 8px; cursor: pointer; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; backdrop-filter: blur(4px); 
+            animation: group-pulse 1.25s infinite ease-in-out;
+        }
+        .group-marker:hover { border-color: #fff; box-shadow: 0 0 25px var(--tech-cyan), inset 0 0 15px var(--tech-cyan) !important; transform: scale(1.15) !important; z-index: 10; animation: none;}
+        .group-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px; color: #fff; text-shadow: 0 1px 2px #000;}
+        .mini-dots-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; width: 42px; }
+        .mini-dot { width: 10px; height: 10px; border: 1px solid rgba(255,255,255,0.7); border-radius: 2px; } 
+        
+        /* 彈窗面板 */
+        .popup { 
+            display: none; position: absolute; top: 55px; left: -15px; 
+            background: linear-gradient(145deg, rgba(20, 22, 30, 0.98) 0%, rgba(10, 11, 15, 0.98) 100%);
+            border: 1px solid rgba(0, 176, 255, 0.4); 
+            border-top: 3px solid var(--tech-cyan);
+            border-radius: 6px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9), 0 0 20px rgba(0, 176, 255, 0.15); 
+            z-index: 100; color: white;
+        }
+        .single-popup { width: 300px; } 
+        .group-popup { width: max-content; min-width: 540px; max-width: 580px; } 
+        
+        .task-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 18px; }
+        .task-card { 
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.2) 100%);
+            border: 1px solid #333; border-top: 1px solid #555;
+            padding: 15px; border-radius: 6px; display: flex; flex-direction: column;
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.02), 0 4px 8px rgba(0,0,0,0.5);
+        }
+        
+        .popup-header { background: #0a0b10; padding: 12px 18px; font-size: 18px; font-weight: bold; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; border-radius: 5px 5px 0 0; color: var(--text-main);}
+        .close-btn { color: #666; cursor: pointer; font-size: 24px; line-height: 1; transition: color 0.2s;}
+        .close-btn:hover { color: #ff4757; }
+        
+        .info-title { font-size: 20px; font-weight: bold; color: #fff; margin-bottom: 6px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);} 
+        .task-exp { font-size: 15px; color: #00e676; font-family: monospace; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;}
+        .task-hint { font-size: 15px; color: #a1a1aa; background: rgba(0, 0, 0, 0.4); padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid var(--tech-cyan); line-height: 1.5; } 
+        
+        .coord-buttons { display: flex; flex-direction: column; gap: 8px; }
+        .status-btn { 
+            display: block; width: 100%; padding: 12px 0; text-align: center; font-size: 18px; font-weight: bold; color: white; cursor: pointer; margin: 0; border-radius: 4px; 
+            background-image: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 100%);
+            border: 1px solid rgba(255,255,255,0.4);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 8px rgba(0,0,0,0.6); 
+            transition: all 0.2s; text-transform: uppercase; letter-spacing: 2px;
+        }
+        .status-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+        
+        .copy-btn { 
+            background: linear-gradient(180deg, #2a2d3d 0%, #1a1d28 100%); 
+            color: #ccc; border: 1px solid #4a4d5a; 
+            padding: 10px 12px; font-size: 15px; cursor: pointer; text-align: left; border-radius: 4px; transition: all 0.2s; display: flex; align-items: center; letter-spacing: 1px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.4);
+        } 
+        .copy-btn::before { content: '▤'; margin-right: 8px; font-size: 16px; color: var(--tech-cyan);}
+        .copy-btn:hover { background: linear-gradient(180deg, #32364a 0%, #24283b 100%); color: #fff; }
+    </style>
+</head>
+<body>
+
+    <h2>Archie的每日任務追蹤_<span>←═╪</span> Blue°Eyes <span>═╪→</span></h2>
+    
+    <div class="main-layout">
+        <div class="map-pane">
+            <div class="panel-toggle-btn" id="table-toggle-btn" onclick="toggleTablePanel()">▶</div>
+
+            <div id="global-progress">
+                <div class="progress-header-toggle" onclick="togglePredictionPanel()">
+                    <span class="progress-title">任務達成率</span>
+                    <span id="progress-text">0 / 34 (0%) ▾</span>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar-fill"></div>
+                </div>
+
+                <div class="progress-footer-bar">
+                    <span style="color: #a1a1aa;" id="task-count-text">完成任務: 0 / 34</span>
+                    <span style="color: var(--tech-cyan); font-size: 12px; cursor: pointer;" onclick="togglePredictionPanel()">點擊展開詳情</span>
+                </div>
+
+                <div id="prediction-content">
+                    <div class="pred-row">
+                        <span class="pred-label">目標等級</span>
+                        <input type="number" id="input-target-lv" class="editable-input" value="113" min="1" max="120" oninput="updatePrediction()">
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">升級所需經驗</span>
+                        <span id="val-req-exp" class="pred-value">29,381,931,175</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">開始時間</span>
+                        <input type="text" id="input-start-time" class="editable-input" value="2026/10/25 8:00" oninput="updatePrediction()">
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前時間</span>
+                        <span id="val-curr-time" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前經驗 (%)</span>
+                        <input type="text" id="input-curr-pct" class="editable-input" value="60.9%" oninput="updatePrediction()">
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">原預計天數</span>
+                        <span id="val-orig-days" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">原預計完成時間</span>
+                        <span id="val-orig-finish" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">剩餘天數</span>
+                        <span id="val-left-days" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">預計完成時間</span>
+                        <span id="val-pred-finish" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前效率完成預估</span>
+                        <span id="val-eff-finish" class="pred-value" style="color:#00e676;">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前效率</span>
+                        <span id="val-eff-pct" class="pred-value" style="background:#4a148c; padding:2px 6px; border-radius:3px;">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">已完成經驗</span>
+                        <span id="val-done-exp" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+                        <span class="pred-label">剩餘經驗</span>
+                        <span id="val-left-exp" class="pred-value">-</span>
+                    </div>
+                </div>
+
+                <div class="batch-controls">
+                    <div class="hud-btn btn-reset" onclick="resetAll()">一鍵重置</div>
+                    <div class="hud-btn btn-complete" onclick="completeAll()">一鍵全完成</div>
+                </div>
+            </div>
+            
+            <div id="ind-top" class="offscreen-indicator top-indicator">▲ 喂~上方尚有未完成任務</div>
+            <div id="ind-bottom" class="offscreen-indicator bottom-indicator">▼ 喂~下方尚有未完成任務</div>
+            <div id="ind-left" class="offscreen-indicator left-indicator">◀ 喂~左方尚有未完成任務</div>
+            <div id="ind-right" class="offscreen-indicator right-indicator">▶ 喂~右方尚有未完成任務</div>
+
+            <div class="map-scroll-area" id="map-scroll-area">
+                <div id="map-container"></div>
+            </div>
+        </div>
+
+        <div class="table-pane" id="table-pane">
+            <table id="task-table">
+                <thead>
+                    <tr>
+                        <th width="14%">區域</th>
+                        <th width="46%">任務目標</th>
+                        <th width="20%">狀態</th>
+                        <th width="20%">經驗值</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const expTable = {
+            1: 2443, 2: 2711, 3: 3009, 4: 3339, 5: 3706, 6: 4113, 7: 4565, 8: 5067, 9: 5624, 10: 6242,
+            11: 6928, 12: 7690, 13: 8535, 14: 9473, 15: 10515, 16: 11671, 17: 12954, 18: 14378, 19: 15959, 20: 17714,
+            21: 19662, 22: 21824, 23: 24224, 24: 26888, 25: 29845, 26: 33127, 27: 36770, 28: 40814, 29: 45303, 30: 50286,
+            31: 55817, 32: 61956, 33: 68771, 34: 76335, 35: 84731, 36: 94051, 37: 104396, 38: 115879, 39: 128625, 40: 142773,
+            41: 158478, 42: 175910, 43: 195260, 44: 216738, 45: 240579, 46: 267042, 47: 296416, 48: 329021, 49: 365213, 50: 434603,
+            51: 1037509, 52: 1525139, 53: 2241953, 54: 3295672, 55: 4844639, 56: 7121618, 57: 10468780, 58: 15389107, 59: 22621987, 60: 22621987,
+            61: 25789065, 62: 29399534, 63: 33515469, 64: 38207635, 65: 43556704, 66: 49654642, 67: 56606292, 68: 64531173, 69: 73565537, 70: 83864712,
+            71: 94767124, 72: 107086850, 73: 121008141, 74: 136739199, 75: 154515294, 76: 174602283, 77: 197300579, 78: 222949654, 79: 251933109, 80: 284684413,
+            81: 318846542, 82: 357108127, 83: 399961102, 84: 447956434, 85: 501711206, 86: 561916551, 87: 629346536, 88: 704868120, 89: 789452294, 90: 884186569,
+            91: 990288957, 92: 1109123631, 93: 1242218466, 94: 1391284681, 95: 1558238842, 96: 1745227503, 97: 1954654803, 98: 2189213379, 99: 2451918984, 100: 2746149262,
+            101: 3295379114, 102: 3954454936, 103: 4745345923, 104: 5694415107, 105: 6833298128, 106: 8199957753, 107: 9839949303, 108: 11807939163, 109: 14169526995, 110: 17003432394,
+            111: 20404118872, 112: 24484942646, 113: 29381931175, 114: 35258317410, 115: 42309980892, 116: 50771977070, 117: 60926372484, 118: 73111164980, 119: 87733976376, 120: 105280771651
+        };
+
+        const states = ["未完成", "待完成", "可提交", "完成"];
+        const colors = ["#e60023", "#ff9800", "#00b0ff", "#00e676"]; 
+        const STORAGE_KEY = "blueeyes_quest_data_v7"; 
+
+        const darkThemeBg = {
+            juno: "rgba(255, 255, 255, 0.02)",       
+            hugelTown: "rgba(255, 255, 255, 0.04)",  
+            hugel: "rgba(255, 255, 255, 0.02)",      
+            einbech: "rgba(255, 255, 255, 0.04)",    
+            lhzTown: "rgba(255, 255, 255, 0.02)",    
+            lhz: "rgba(255, 255, 255, 0.04)",        
+            event: "rgba(255, 255, 255, 0.02)"       
+        };
+
+        const mapNodes = [
+            // ================= 朱諾 =================
+            {
+                type: "group", id: "ju_group_1", x: 868, y: 177, title: "朱諾", markerLabel: "國界", region: "朱諾", bgColor: darkThemeBg.juno,
+                tasks: [
+                    { id: "ju_1", title: "送便當", hint: "", exp: 93061051, coords: [{ label: "複製任務座標", cmd: "/navi aldebaran 114/180" }], state: 0 },
+                    { id: "ju_2", title: "國界檢查站的工作", hint: "擊殺 邪惡向日葵、螳螂*10", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild01 193/158" }], state: 0 }
+                ]
+            },
+            { type: "single", id: "ju_3", x: 865, y: 125, title: "搭建陣地", hint: "提交 柳橙*3、黃晶沙*3、沙團*10", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild09 308/80" }], state: 0, region: "朱諾", bgColor: darkThemeBg.juno },
+            {
+                type: "group", id: "ju_group_2", x: 805, y: 133, title: "朱諾", markerLabel: "學院", region: "朱諾", bgColor: darkThemeBg.juno,
+                tasks: [
+                    { id: "ju_4", title: "突破性的業務項目", hint: "提交 魔羌毛皮*10、七彩大嘴鳥之羽*10", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild08 172/198" }], state: 0 },
+                    { id: "ju_5", title: "完美的結尾", hint: "擊殺 魔羌*20、七彩大嘴鳥*20", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild08 179/200" }], state: 0 },
+                    { id: "ju_6", title: "強化學院安全", hint: "擊殺 鳥人*15", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild08 198/200" }], state: 0 }
+                ]
+            },
+            { type: "single", id: "ju_7", x: 805, y: 87, title: "將此詩獻給冒險家", hint: "擊殺 沙妖*30", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild02 146/186" }], state: 0, region: "朱諾", bgColor: darkThemeBg.juno },
+            {
+                type: "group", id: "ju_group_3", x: 756, y: 86, title: "朱諾", markerLabel: "火2", region: "朱諾", bgColor: darkThemeBg.juno,
+                tasks: [
+                    { id: "ju_8", title: "再次擊殺七彩夢魘", hint: "擊殺 七彩夢魘*30", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild03 40/150" }], state: 0 },
+                    { id: "ju_9", title: "再次擊殺飛龍", hint: "擊殺 七彩飛龍、地龍*30", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild03 40/150" }], state: 0 },
+                    { id: "ju_10", title: "再次收集凝固的岩漿", hint: "提交 岩漿*10", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild03 40/150" }], state: 0 }
+                ]
+            },
+            { type: "single", id: "ju_11", x: 745, y: 45, title: "司書圖書館員和護衛工作", hint: "抓飛行魔書*5", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild06 308/170" }], state: 0, region: "朱諾", bgColor: darkThemeBg.juno },
+            { type: "single", id: "ju_12", x: 681, y: 88, title: "尋找遺失的東西", hint: "(噬人樹花*1、哈比羽毛*3)*5組", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild04 257/210" }], state: 0, region: "朱諾", bgColor: darkThemeBg.juno },
+            { type: "single", id: "ju_13", x: 742, y: 172, title: "修復後再修復", hint: "擊殺 魔羌、提交 魔羌之角*10", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi yuno_fild11 71/363" }], state: 0, region: "朱諾", bgColor: darkThemeBg.juno },
+
+            // ================= 毀葛 (城鎮) =================
+            {
+                type: "group", id: "hu_group_1", x: 934, y: 0, title: "毀葛城鎮", markerLabel: "毀葛", region: "毀葛<br><span style='font-size:14px; color:#666;'>(城鎮)</span>", bgColor: darkThemeBg.hugelTown,
+                tasks: [
+                    { id: "hu_1", title: "籌備婚禮", hint: "", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi hugel 169/112" }], state: 0 },
+                    { id: "hu_2", title: "整修住宅", hint: "", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi hu_in01 289/249" }], state: 0 },
+                    { id: "hu_3", title: "新食材", hint: "", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi hugel 83/97" }], state: 0 },
+                    { id: "hu_4", title: "向完美的口味邁進", hint: "", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi hu_in01 15/372" }], state: 0 },
+                    { id: "hu_5", title: "毀葛之味", hint: "", exp: 93061051, coords: [{ label: "複製NPC座標", cmd: "/navi hu_in01 246/300" }], state: 0 }
+                ]
+            },
+            
+            // ================= 毀葛 =================
+            { type: "single", id: "hu_6", x: 1057, y: 123, title: "移除危險物體", hint: "擊殺 藍色、紫色、綠色離子體*5", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi hu_in01 152/177" }], state: 0, region: "毀葛", bgColor: darkThemeBg.hugel },
+            {
+                type: "group", id: "hu_group_2", x: 1115, y: 124, title: "神殿2", markerLabel: "皮影魔", region: "毀葛", bgColor: darkThemeBg.hugel,
+                tasks: [
+                    { id: "hu_7", title: "從打電報的傢伙開始", hint: "擊殺 皮影魔*20", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi hugel 198/105" }], state: 0 },
+                    { id: "hu_8", title: "淨化惡魔", hint: "擊殺 彩色皮影魔*20", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi hugel 198/105" }], state: 0 }
+                ]
+            },
+            { type: "single", id: "hu_9", x: 1115, y: 80, title: "被迷惑之前", hint: "擊殺 褐方體惡魔、黑方體惡魔*5", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi hugel 198/105" }], state: 0, region: "毀葛", bgColor: darkThemeBg.hugel },
+
+            // ================= 艾音 (僅採集任務) =================
+            { type: "single", id: "ei_1", x: 616, y: 168, title: "送便當", hint: "隨機地點", exp: 93061051, coords: [
+                { label: "複製NPC座標", cmd: "/navi einbech 139/125" }, { label: "複製 皮蒂 座標", cmd: "/navi ein_fild05 180/217" },
+                { label: "複製 波波 座標", cmd: "/navi ein_fild06 193/150" }, { label: "複製 特龍 座標", cmd: "/navi ein_fild07 220/85" },
+                { label: "複製 傑利 座標", cmd: "/navi ein_fild09 282/234" }
+            ], state: 0, region: "艾音<br><span style='font-size:14px; color:#666;'>(採集)</span>", bgColor: darkThemeBg.einbech },
+            { type: "single", id: "ei_2", x: 553, y: 211, title: "檢查設備", hint: "依序點擊設備", exp: 93061051, coords: [
+                { label: "複製NPC座標", cmd: "/navi ein_fild08 172/358" }
+            ], state: 0, region: "艾音<br><span style='font-size:14px; color:#666;'>(採集)</span>", bgColor: darkThemeBg.einbech },
+            { type: "single", id: "ei_3", x: 553, y: 122, title: "逃家小狗", hint: "隨機地點", exp: 93061051, coords: [
+                { label: "複製NPC座標", cmd: "/navi ein_fild04 180/35" }, { label: "複製地點1座標", cmd: "/navi ein_fild04 130/148" },
+                { label: "複製地點2座標", cmd: "/navi ein_fild04 266/206" }, { label: "複製地點3座標", cmd: "/navi ein_fild04 305/270" },
+                { label: "複製地點4座標", cmd: "/navi ein_fild04 178/333" }
+            ], state: 0, region: "艾音<br><span style='font-size:14px; color:#666;'>(採集)</span>", bgColor: darkThemeBg.einbech },
+
+            // ================= 企都 (城鎮) =================
+            {
+                type: "group", id: "li_group_1", x: 335, y: 373, title: "企都城鎮", markerLabel: "企都", region: "企都<br><span style='font-size:14px; color:#666;'>(城鎮)</span>", bgColor: darkThemeBg.lhzTown,
+                tasks: [
+                    { id: "li_1", title: "為什麼有這麼大的游泳池", hint: "擊殺 草精*20", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi lighthalzen 200/314" }], state: 0 },
+                    { id: "li_2", title: "輕拍腳踝！", hint: "擊殺 灰森靈*20", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi lighthalzen 200/314" }], state: 0 },
+                    { id: "li_3", title: "以死神的峽谷之名", hint: "擊殺 微風*20", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi lighthalzen 208/314" }], state: 0 },
+                    { id: "li_4", title: "我們能做的事", hint: "提交 犯人的手鍊*20", exp: 231585505, coords: [{ label: "複製NPC座標", cmd: "/navi lighthalzen 257/98" }], state: 0 }
+                ]
+            },
+
+            // ================= 企都 =================
+            { type: "single", id: "li_5", x: 428, y: 169, title: "配送 (木材)", hint: "搬運任務", exp: 231585505, coords: [
+                { label: "複製NPC座標", cmd: "/navi lhz_fild02 225/239" }, { label: "複製木材座標", cmd: "/navi lhz_fild01 84/235" }
+            ], state: 0, region: "企都", bgColor: darkThemeBg.lhz },
+            { type: "single", id: "li_6", x: 494, y: 210, title: "配送 (磚頭)", hint: "搬運任務", exp: 231585505, coords: [
+                { label: "複製NPC座標", cmd: "/navi lhz_fild02 225/239" }, { label: "複製磚頭座標", cmd: "/navi lhz_fild03 288/364" }
+            ], state: 0, region: "企都", bgColor: darkThemeBg.lhz },
+            { type: "single", id: "li_7", x: 494, y: 168, title: "配送 (鞭子)", hint: "搬運任務", exp: 231585505, coords: [
+                { label: "複製NPC座標", cmd: "/navi lhz_fild02 225/239" }, { label: "複製鞭子座標", cmd: "/navi lhz_fild02 116/242" }
+            ], state: 0, region: "企都", bgColor: darkThemeBg.lhz },
+
+            // ================= 活動 =================
+            {
+                type: "group", id: "ev_group_1", x: 316, y: 607, title: "活動", markerLabel: "卑鄙鯊", region: "活動", bgColor: darkThemeBg.event,
+                tasks: [
+                    { id: "ev_1", title: "卑鄙鯊副本", hint: "完成副本", exp: 0, coords: [{ label: "複製NPC座標", cmd: "/navi comodo 201/145" }], state: 0 },
+                    { id: "ev_2", title: "卑鄙鯊地圖", hint: "擊殺 20隻任意怪", exp: 329537911, coords: [{ label: "複製NPC座標", cmd: "/navi comodo 201/145" }], state: 0 },
+
+                ]
+            }
+        ];
+
+        const tableData = [];
+        mapNodes.forEach(node => {
+            if (node.type === "single") {
+                tableData.push({ region: node.region, bgColor: node.bgColor, id: node.id, name: node.title, exp: node.exp, state: node.state, isGroup: false, parentId: null });
+            } else if (node.type === "group") {
+                node.tasks.forEach(task => {
+                    tableData.push({ region: node.region, bgColor: node.bgColor, id: task.id, name: task.title, exp: task.exp, state: task.state, isGroup: true, parentId: node.id });
+                });
+            }
+        });
+
+        const container = document.getElementById("map-container");
+        const scrollArea = document.getElementById("map-scroll-area");
+        const tbody = document.getElementById("task-table").querySelector("tbody");
+        let activePopup = null;
+        let isTableCollapsed = false;
+
+        window.toggleTablePanel = function() {
+            isTableCollapsed = !isTableCollapsed;
+            applyTableToggle();
+            localStorage.setItem("blueeyes_table_collapsed", isTableCollapsed);
+        };
+        
+        function applyTableToggle() {
+            const pane = document.getElementById("table-pane");
+            const btn = document.getElementById("table-toggle-btn");
+            if(isTableCollapsed) {
+                pane.classList.add("collapsed");
+                btn.innerHTML = "◀";
+            } else {
+                pane.classList.remove("collapsed");
+                btn.innerHTML = "▶";
+            }
+            setTimeout(checkOffscreenTasks, 310);
+        }
+
+        window.togglePredictionPanel = function() {
+            const content = document.getElementById("prediction-content");
+            const isExpanded = content.style.display === "block";
+            content.style.display = isExpanded ? "none" : "block";
+            localStorage.setItem("blueeyes_panel_expanded", !isExpanded);
+        };
+
+        function saveToLocal() {
+            const stateData = {
+                tasks: {},
+                targetLv: document.getElementById("input-target-lv").value,
+                startTime: document.getElementById("input-start-time").value,
+                currPct: document.getElementById("input-curr-pct").value,
+                isExpanded: document.getElementById("prediction-content").style.display === "block"
+            };
+            tableData.forEach(t => stateData.tasks[t.id] = t.state);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stateData));
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.tasks) {
+                        tableData.forEach(t => {
+                            if (data.tasks[t.id] !== undefined) {
+                                t.state = data.tasks[t.id];
+                                if (!t.isGroup) mapNodes.find(n => n.id === t.id).state = t.state;
+                                else mapNodes.find(n => n.id === t.parentId).tasks.find(tk => tk.id === t.id).state = t.state;
+                            }
+                        });
+                    }
+                    if (data.targetLv) document.getElementById("input-target-lv").value = data.targetLv;
+                    if (data.startTime) document.getElementById("input-start-time").value = data.startTime;
+                    if (data.currPct) document.getElementById("input-curr-pct").value = data.currPct;
+                    if (data.isExpanded) {
+                        document.getElementById("prediction-content").style.display = "block";
+                    }
+                } catch(e) { console.error("存檔解析失敗"); }
+            }
+            
+            const savedTableState = localStorage.getItem("blueeyes_table_collapsed");
+            if (savedTableState === "true") {
+                isTableCollapsed = true;
+                applyTableToggle();
+            }
+        }
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function parseDateTime(str) {
+            try {
+                const parts = str.trim().split(/[\/\s:]/);
+                if (parts.length >= 4) {
+                    return new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4] || 0);
+                }
+            } catch(e) {}
+            return new Date();
+        }
+
+        function formatDateTime(date) {
+            if (isNaN(date.getTime())) return "-";
+            const y = date.getFullYear();
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            const h = date.getHours();
+            const min = String(date.getMinutes()).padStart(2, '0');
+            return `${y}/${m}/${d} ${h}:${min}`;
+        }
+
+        // 升級預測與任務進度分離計算
+        function updatePrediction() {
+            const targetLv = parseInt(document.getElementById("input-target-lv").value) || 113;
+            const startTimeStr = document.getElementById("input-start-time").value;
+            const currPctStr = document.getElementById("input-curr-pct").value;
+
+            // 等級需求經驗
+            const reqExp = expTable[targetLv] || 29381931175;
+            document.getElementById("val-req-exp").innerText = formatNumber(reqExp);
+
+            const now = new Date();
+            document.getElementById("val-curr-time").innerText = formatDateTime(now);
+            const startTime = parseDateTime(startTimeStr);
+            
+            // 目前經驗 (僅由手動輸入的百分比決定，不加上未送出的任務經驗)
+            const currPct = parseFloat(currPctStr.replace('%', '')) || 0;
+            const totalDoneExp = reqExp * (currPct / 100);
+            const leftExp = Math.max(0, reqExp - totalDoneExp);
+
+            document.getElementById("val-done-exp").innerText = formatNumber(Math.round(totalDoneExp));
+            document.getElementById("val-left-exp").innerText = formatNumber(Math.round(leftExp));
+
+            const elapsedHours = (now - startTime) / (1000 * 60 * 60);
+            const dailyStandardExp = tableData.reduce((sum, t) => sum + t.exp, 0); 
+            
+            const origDays = dailyStandardExp > 0 ? (reqExp / dailyStandardExp) : 1;
+            document.getElementById("val-orig-days").innerText = origDays.toFixed(1) + "天";
+            
+            const origFinishTime = new Date(startTime.getTime() + origDays * 24 * 60 * 60 * 1000);
+            document.getElementById("val-orig-finish").innerText = formatDateTime(origFinishTime);
+
+            const expPerHour = elapsedHours > 0 ? (totalDoneExp / elapsedHours) : 0;
+            const leftHours = expPerHour > 0 ? (leftExp / expPerHour) : 0;
+            const leftDays = leftHours / 24;
+
+            document.getElementById("val-left-days").innerText = leftDays.toFixed(1) + "天";
+
+            const predFinishTime = new Date(now.getTime() + leftHours * 60 * 60 * 1000);
+            document.getElementById("val-pred-finish").innerText = formatDateTime(predFinishTime);
+            document.getElementById("val-eff-finish").innerText = formatDateTime(predFinishTime);
+
+            const origRatePerHour = reqExp / (origDays * 24);
+            const effPct = origRatePerHour > 0 ? (expPerHour / origRatePerHour) * 100 : 100;
+            document.getElementById("val-eff-pct").innerText = effPct.toFixed(1) + "%";
+
+            // ======= 任務進度計算 (任務達成率專用) =======
+            const totalTasks = tableData.length;
+            const completedCount = tableData.filter(t => t.state === 3).length;
+            const taskPctVal = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
+            
+            document.getElementById("progress-bar").style.width = taskPctVal.toFixed(1) + "%";
+            document.getElementById("progress-text").innerText = `${completedCount} / ${totalTasks} (${taskPctVal.toFixed(0)}%) ▾`;
+            document.getElementById("task-count-text").innerText = `完成任務: ${completedCount} / ${totalTasks}`;
+
+            saveToLocal();
+        }
+
+        window.resetAll = function() {
+            if(confirm("⚠️ 戰術重置確認 ⚠️\n這將清空所有任務進度，確定要重新開始新的一天嗎？")) {
+                batchChangeState(0);
+            }
+        }
+        window.completeAll = function() {
+            if(confirm("✅ 全局完成確認 ✅\n將所有任務標記為完成？")) {
+                batchChangeState(3);
+            }
+        }
+        function batchChangeState(newState) {
+            tableData.forEach(t => {
+                t.state = newState;
+                if (!t.isGroup) mapNodes.find(n => n.id === t.id).state = newState;
+                else mapNodes.find(n => n.id === t.parentId).tasks.find(tk => tk.id === t.id).state = newState;
+            });
+            refreshDOMVisuals();
+            updatePrediction();
+        }
+        
+        function refreshDOMVisuals() {
+            tableData.forEach(t => {
+                const newColor = colors[t.state];
+                const btn = document.getElementById(`btn-${t.id}`);
+                if(btn) { btn.innerText = `狀態切換：${states[t.state]}`; btn.style.backgroundColor = newColor; }
+                
+                const mapMarker = document.getElementById(t.isGroup ? `dot-${t.id}` : `marker-${t.id}`);
+                if(mapMarker) {
+                    if(t.isGroup) {
+                        mapMarker.style.backgroundColor = newColor;
+                        mapMarker.style.boxShadow = `0 0 6px ${newColor}`;
+                    } else {
+                        mapMarker.style.color = newColor;
+                        mapMarker.style.textShadow = `0 0 2px #fff, 0 0 6px #fff, 0 0 12px ${newColor}, 0 0 20px ${newColor}, 0 0 4px #000`;
+                    }
+                }
+                
+                const badge = document.getElementById(`badge-${t.id}`);
+                if(badge) { badge.innerText = states[t.state]; badge.style.backgroundColor = newColor; }
+            });
+            checkOffscreenTasks();
+        }
+
+        function checkOffscreenTasks() {
+            const scrollTop = scrollArea.scrollTop;
+            const scrollBottom = scrollTop + scrollArea.clientHeight;
+            const scrollLeft = scrollArea.scrollLeft;
+            const scrollRight = scrollLeft + scrollArea.clientWidth;
+
+            let hasTop = false, hasBottom = false, hasLeft = false, hasRight = false;
+            mapNodes.forEach(node => {
+                let isCompleted = node.type === "single" ? (node.state === 3) : node.tasks.every(t => t.state === 3);
+                if (!isCompleted) {
+                    if (node.y + 40 < scrollTop) hasTop = true;
+                    if (node.y > scrollBottom) hasBottom = true;
+                    if (node.x + 40 < scrollLeft) hasLeft = true;
+                    if (node.x > scrollRight) hasRight = true;
+                }
+            });
+
+            document.getElementById("ind-top").classList.toggle("visible", hasTop);
+            document.getElementById("ind-bottom").classList.toggle("visible", hasBottom);
+            document.getElementById("ind-left").classList.toggle("visible", hasLeft);
+            document.getElementById("ind-right").classList.toggle("visible", hasRight);
+        }
+
+        scrollArea.addEventListener("scroll", checkOffscreenTasks);
+        window.addEventListener("resize", checkOffscreenTasks);
+
+        window.changeState = function(taskId, isGroup, parentId, event) {
+            if(event) event.stopPropagation();
+            const taskRecord = tableData.find(t => t.id === taskId);
+            taskRecord.state = (taskRecord.state + 1) % states.length;
+            const newState = taskRecord.state;
+            const newColor = colors[newState];
+
+            if(!isGroup) mapNodes.find(n => n.id === taskId).state = newState;
+            else mapNodes.find(n => n.id === parentId).tasks.find(t => t.id === taskId).state = newState;
+
+            const popupBtn = document.getElementById(`btn-${taskId}`);
+            if(popupBtn) { popupBtn.innerText = `狀態切換：${states[newState]}`; popupBtn.style.backgroundColor = newColor; }
+            
+            const mapMarker = document.getElementById(isGroup ? `dot-${taskId}` : `marker-${taskId}`);
+            if(mapMarker) { 
+                if(isGroup) {
+                    mapMarker.style.backgroundColor = newColor; 
+                    mapMarker.style.boxShadow = `0 0 6px ${newColor}`;
+                } else {
+                    mapMarker.style.color = newColor;
+                    mapMarker.style.textShadow = `0 0 2px #fff, 0 0 6px #fff, 0 0 12px ${newColor}, 0 0 20px ${newColor}, 0 0 4px #000`;
+                }
+            }
+            
+            const badge = document.getElementById(`badge-${taskId}`);
+            if(badge) { badge.innerText = states[newState]; badge.style.backgroundColor = newColor; }
+
+            updatePrediction(); 
+            checkOffscreenTasks(); 
+        };
+
+        function renderMap() {
+            mapNodes.forEach(node => {
+                let wrapper = document.createElement("div");
+                wrapper.className = "node-container";
+                wrapper.style.left = node.x + "px";
+                wrapper.style.top = node.y + "px";
+
+                let popupStyle = "";
+                if (node.x > 800) popupStyle += "left: auto; right: -20px; "; 
+                if (node.y > 600) popupStyle += node.type === "single" ? "top: auto; bottom: 50px; " : "top: auto; bottom: 65px; ";
+
+                if (node.type === "single") {
+                    let firstBtnHtml = node.coords.length > 0 ? `<div class="coord-buttons" style="margin-bottom:12px;"><button class="copy-btn" onclick="copyCoord('${node.coords[0].cmd}', event)">${node.coords[0].label}</button></div>` : '';
+                    let restBtnsHtml = node.coords.length > 1 ? `<div class="coord-buttons" style="margin-top:12px;">${node.coords.slice(1).map(c => `<button class="copy-btn" onclick="copyCoord('${c.cmd}', event)">${c.label}</button>`).join('')}</div>` : '';
+                    
+                    wrapper.innerHTML = `
+                        <div id="marker-${node.id}" class="single-marker" style="color: ${colors[node.state]}; text-shadow: 0 0 2px #fff, 0 0 6px #fff, 0 0 12px ${colors[node.state]}, 0 0 20px ${colors[node.state]}, 0 0 4px #000;">★</div>
+                        <div id="popup-${node.id}" class="popup single-popup" style="${popupStyle}">
+                            <div class="popup-header">
+                                <span>🌐 任務資料</span>
+                                <span class="close-btn" onclick="closePopup('${node.id}', event)">✖</span>
+                            </div>
+                            <div style="padding:18px 20px; display:flex; flex-direction:column; height:100%;">
+                                <div class="info-title">${node.title}</div>
+                                <div class="task-exp">經驗值: +${formatNumber(node.exp)}</div>
+                                ${node.hint ? `<div class="task-hint">${node.hint}</div>` : ''}
+                                <div style="margin-top: auto;">
+                                    ${firstBtnHtml}
+                                    <button id="btn-${node.id}" class="status-btn" style="background-color: ${colors[node.state]}" onclick="changeState('${node.id}', false, null, event)">
+                                        狀態切換：${states[node.state]}
+                                    </button>
+                                    ${restBtnsHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (node.type === "group") {
+                    let dotsHtml = node.tasks.map(t => `<div id="dot-${t.id}" class="mini-dot" style="background-color: ${colors[t.state]}; box-shadow: 0 0 6px ${colors[t.state]};"></div>`).join('');
+                    let tasksHtml = node.tasks.map(task => {
+                        let firstBtnHtml = task.coords.length > 0 ? `<div class="coord-buttons" style="margin-bottom:12px;"><button class="copy-btn" onclick="copyCoord('${task.coords[0].cmd}', event)">${task.coords[0].label}</button></div>` : '';
+                        let restBtnsHtml = task.coords.length > 1 ? `<div class="coord-buttons" style="margin-top:12px;">${task.coords.slice(1).map(c => `<button class="copy-btn" onclick="copyCoord('${c.cmd}', event)">${c.label}</button>`).join('')}</div>` : '';
+                        
+                        return `
+                            <div class="task-card">
+                                <div class="info-title">${task.title}</div>
+                                <div class="task-exp">經驗值: +${formatNumber(task.exp)}</div>
+                                ${task.hint ? `<div class="task-hint">${task.hint}</div>` : ''}
+                                <div style="margin-top: auto;">
+                                    ${firstBtnHtml}
+                                    <button id="btn-${task.id}" class="status-btn" style="background-color: ${colors[task.state]}" onclick="changeState('${task.id}', true, '${node.id}', event)">
+                                        狀態切換：${states[task.state]}
+                                    </button>
+                                    ${restBtnsHtml}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    wrapper.innerHTML = `
+                        <div id="marker-${node.id}" class="group-marker">
+                            <span class="group-title">${node.markerLabel || '群組'}</span>
+                            <div class="mini-dots-container">${dotsHtml}</div>
+                        </div>
+                        <div id="popup-${node.id}" class="popup group-popup" style="${popupStyle}">
+                            <div class="popup-header">
+                                <span>🌐 ${node.title}</span>
+                                <span class="close-btn" onclick="closePopup('${node.id}', event)">✖</span>
+                            </div>
+                            <div class="task-grid">${tasksHtml}</div>
+                        </div>
+                    `;
+                }
+                container.appendChild(wrapper);
+
+                const marker = document.getElementById(`marker-${node.id}`);
+                const popup = document.getElementById(`popup-${node.id}`);
+                
+                marker.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    if (activePopup && activePopup !== popup) {
+                        activePopup.style.display = "none";
+                        activePopup.parentNode.style.zIndex = 1;
+                    }
+                    if (popup.style.display === "block") {
+                        popup.style.display = "none";
+                        wrapper.style.zIndex = 1;
+                        activePopup = null;
+                    } else {
+                        popup.style.display = "block";
+                        wrapper.style.zIndex = 100;
+                        activePopup = popup;
+                    }
+                });
+            });
+        }
+
+        function renderTable() {
+            let html = "";
+            let currentRegion = "";
+            const regionCounts = {};
+            
+            tableData.forEach(t => regionCounts[t.region] = (regionCounts[t.region] || 0) + 1);
+
+            tableData.forEach(task => {
+                html += `<tr style="background-color: ${task.bgColor}">`;
+                if (task.region !== currentRegion) {
+                    html += `<td class="region-cell" rowspan="${regionCounts[task.region]}">${task.region}</td>`;
+                    currentRegion = task.region;
+                }
+                html += `<td class="table-task-name">${task.name}</td>`;
+                html += `<td style="text-align: center;">
+                             <span id="badge-${task.id}" class="status-badge" style="background-color: ${colors[task.state]}" 
+                                   onclick="changeState('${task.id}', ${task.isGroup}, '${task.parentId}', event)">
+                                 ${states[task.state]}
+                             </span>
+                         </td>`;
+                html += `<td class="exp-cell">+${formatNumber(task.exp)}</td>`;
+                html += `</tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        window.closePopup = function(nodeId, event) {
+            event.stopPropagation();
+            const popup = document.getElementById(`popup-${nodeId}`);
+            popup.style.display = "none";
+            popup.parentNode.style.zIndex = 1;
+            activePopup = null;
+        };
+        
+        container.addEventListener("click", function() {
+            if (activePopup) {
+                activePopup.style.display = "none";
+                activePopup.parentNode.style.zIndex = 1;
+                activePopup = null;
+            }
+        });
+
+        window.copyCoord = function(text, event) {
+            event.stopPropagation();
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try { document.execCommand('copy'); alert("成功複製：" + text); } catch (err) { alert("複製失敗，請手動複製"); }
+            document.body.removeChild(textArea);
+        };
+
+        container.addEventListener("contextmenu", function(e) {
+            e.preventDefault(); 
+            const rect = container.getBoundingClientRect();
+            const trueX = Math.round(e.clientX - rect.left);
+            const trueY = Math.round(e.clientY - rect.top);
+            alert("請將此數值填入程式碼：\n x: " + trueX + " \n y: " + trueY);
+        });
+
+        loadFromLocal();
+        renderMap();
+        renderTable();
+        updatePrediction();
+        setInterval(updatePrediction, 60000); 
+        setTimeout(checkOffscreenTasks, 100);
+
+    </script>
+</body>
+</html>
