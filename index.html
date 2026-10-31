@@ -80,8 +80,8 @@
 
         #map-container {
             position: relative;
-            /* 加上一層 10% 濃度的黑色半透明漸層，讓背景圖變暗，突顯標記 */
-            background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url('map_background.jpg');
+            /* 將黑色遮罩濃度從 0.1 (10%) 調整為 0.25 (25%) */
+            background-image: linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url('map_background.jpg');
             background-size: cover;
             width: 1348px;
             height: 741px;
