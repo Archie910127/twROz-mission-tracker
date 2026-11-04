@@ -498,12 +498,20 @@
         .single-marker:hover { transform: scale(1.4) rotate(15deg) !important; z-index: 10; animation: none; filter: brightness(1.8); }
         
         .group-marker { 
-            width: 50px; height: 50px; background: rgba(11, 4, 19, 0.92); border: 2px solid var(--cyber-purple); cursor: pointer; 
+            /* 調整：將寬高放大，並使用 min-width 確保長文字不被切斷 */
+            min-width: 60px; height: 55px; padding: 0 4px;
+            background: rgba(11, 4, 19, 0.92); border: 2px solid var(--cyber-purple); cursor: pointer; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; backdrop-filter: blur(4px); 
             animation: group-pulse 1.5s infinite ease-in-out; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
         }
         .group-marker:hover { border-color: var(--cyber-green); box-shadow: 0 0 25px var(--cyber-green-glow) !important; transform: scale(1.18) !important; z-index: 10; animation: none;}
-        .group-title { font-size: 12px; font-weight: 900; margin-bottom: 3px; color: #fff; text-shadow: 0 0 5px var(--cyber-purple); }
+        
+        .group-title { 
+            /* 調整：確保文字只有一行，縮小一點字體，避免超出版面 */
+            font-size: 11px; font-weight: 900; margin-bottom: 4px; color: #fff; text-shadow: 0 0 5px var(--cyber-purple); 
+            white-space: nowrap; text-align: center;
+        }
+
         .mini-dots-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; width: 42px; }
         .mini-dot { width: 10px; height: 10px; border: 1px solid rgba(255,255,255,0.8); } 
         
