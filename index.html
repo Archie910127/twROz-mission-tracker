@@ -749,8 +749,11 @@
                 const response = await fetch(SHEET_CSV_URL + '?t=' + new Date().getTime());
                 const csvText = await response.text();
                 
-                Papa.parse(csvText, {
-                    header: true, skipEmptyLines: true,
+              Papa.parse(csvText, {
+                    header: true, 
+                    skipEmptyLines: true,
+                    // 加入這行：自動清理所有欄位名稱前後的空白與隱形字元 (BOM)
+                    transformHeader: function(h) { return h.trim().replace(/^\uFEFF/, ''); },
                     complete: function(results) {
                         processRawData(results.data);
                         generateTableData(); 
