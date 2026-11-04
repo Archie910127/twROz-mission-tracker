@@ -805,21 +805,17 @@
                     }
                 }
 
-                const currentTaskName = row.TaskName ? row.TaskName.trim() : "";
-                
-                if (currentTaskName !== "" && currentTaskName !== lastTaskName) {
-                    // 新任務
-                    lastTaskName = currentTaskName;
-                    currentTaskObj = {
-                        id: `task_${x}_${y}_${Math.random().toString(36).substr(2, 5)}`,
-                        title: currentTaskName,
-                        hint: row.Hint ? row.Hint.trim() : "",
-                        exp: parseInt((row.EXP || "0").replace(/,/g, '')),
-                        // 將 NPC 接取座標獨立出來
-                        npcCoord: (row.NPC_Navi && row.NPC_Navi.trim() !== "") ? { label: "複製NPC接取座標", cmd: row.NPC_Navi.trim() } : null,
-                        targetCoords: [],
-                        state: 0
-                    };
+const sanitizedName = encodeURIComponent(currentTaskName.replace(/\s+/g, '_'));
+currentTaskObj = {
+    // 使用座標與任務名稱組成唯一且固定的 ID，確保重整後進度不消失
+    id: `task_${x}_${y}_${sanitizedName}`,
+    title: currentTaskName,
+    hint: row.Hint ? row.Hint.trim() : "",
+    exp: parseInt((row.EXP || "0").replace(/,/g, '')),
+    npcCoord: (row.NPC_Navi && row.NPC_Navi.trim() !== "") ? { label: "複製NPC接取座標", cmd: row.NPC_Navi.trim() } : null,
+    targetCoords: [],
+    state: 0
+};
 
                     if (row.Submit_Navi && row.Submit_Navi.trim() !== "") {
                         const btnLabel = row.Submit_NPC ? `複製 ${row.Submit_NPC.trim()} 座標` : "複製地點座標";
@@ -1196,14 +1192,6 @@
         }
 
         container.addEventListener("contextmenu", function(e) { e.preventDefault(); });
-
-        document.onkeydown = function (e) {
-            if (e.keyCode == 123) { return false; } 
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } 
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } 
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } 
-            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } 
-       }
 
         // === 背景動態電競粒子網路 ===
         const canvas = document.getElementById('bg-canvas');
