@@ -1114,7 +1114,7 @@
                     wrapper.innerHTML = `
                         <div id="marker-${node.id}" class="group-marker"><span class="group-title">${node.markerLabel || '群組'}</span><div class="mini-dots-container">${dotsHtml}</div></div>
                         <div id="popup-${node.id}" class="popup group-popup" style="${popupStyle}">
-                            <div class="popup-header"><span>⌖ ${node.title} 區域任務群組</span><span class="close-btn" onclick="closePopup('${node.id}', event)">✖</span></div>
+                            <div class="popup-header"><span>⌖ ${node.title}</span><span class="close-btn" onclick="closePopup('${node.id}', event)">✖</span></div>
                             <div class="task-grid">${tasksHtml}</div>
                         </div>
                     `;
