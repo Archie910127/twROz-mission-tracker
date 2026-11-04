@@ -529,8 +529,10 @@
         
         .info-title { font-size: 17px; font-weight: 900; color: #fff; margin-bottom: 4px; } 
         .task-exp { font-size: 13px; color: var(--cyber-green); font-family: monospace; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;}
+        
+        /* ⚠️ 任務內容的斷行修復 */
         .task-hint { font-size: 13px; color: #d0bfe0; background: rgba(0, 0, 0, 0.65); padding: 8px 10px; margin-bottom: 12px; border-left: 3px solid var(--cyber-red); line-height: 1.5; white-space: pre-wrap; } 
-
+        
         .coord-buttons { display: flex; flex-direction: column; gap: 6px; }
         .status-btn { 
             display: block; width: 100%; padding: 10px 0; text-align: center; font-size: 14px; font-weight: 900; color: white; cursor: pointer; margin: 0; 
@@ -843,13 +845,15 @@
                         type: "single", id: t.id, x: g.x, y: g.y, title: t.title, hint: t.hint, exp: t.exp,
                         npcCoord: t.npcCoord, targetCoords: t.targetCoords, state: 0, region: g.region, bgColor: bgColors
                     });
-         } else {
-                mapNodes.push({
-                    type: "group", id: `grp_${groupCounter++}`, x: g.x, y: g.y, title: g.region, markerLabel: g.region.split(' ')[0], 
-                    region: g.region, bgColor: bgColors, tasks: g.tasks
-                });
+                } else {
+                    mapNodes.push({
+                        // ⚠️ 修正贅字：將 title 改為純粹的 g.region
+                        type: "group", id: `grp_${groupCounter++}`, x: g.x, y: g.y, title: g.region, markerLabel: g.region.split(' ')[0], 
+                        region: g.region, bgColor: bgColors, tasks: g.tasks
+                    });
+                }
             }
-
+        }
 
         function generateTableData() {
             tableData.length = 0;
@@ -1224,4 +1228,3 @@
     </script>
 </body>
 </html>
-
