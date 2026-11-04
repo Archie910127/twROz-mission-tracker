@@ -1154,22 +1154,32 @@
         window.handleFilterChange = function() { searchQuery = document.getElementById('task-search-input').value.trim().toLowerCase(); renderTable(); };
 
         function renderTable() {
-            let html = ""; let currentRegion = "";
+            let html = "";
             const filteredTasks = tableData.filter(task => {
                 const matchState = (currentFilter === 'all') || (String(task.state) === currentFilter);
                 const matchQuery = !searchQuery || task.name.toLowerCase().includes(searchQuery) || task.region.toLowerCase().includes(searchQuery) || (task.hint && task.hint.toLowerCase().includes(searchQuery)); 
                 return matchState && matchQuery;
             });
-            const regionCounts = {}; filteredTasks.forEach(t => regionCounts[t.region] = (regionCounts[t.region] || 0) + 1);
 
-            filteredTasks.forEach(task => {
+            for (let i = 0; i < filteredTasks.length; i++) {
+                const task = filteredTasks[i];
                 const targetNodeId = task.isGroup ? task.parentId : task.id;
                 html += `<tr onclick="focusMapNode('${targetNodeId}')" title="點擊定位到地圖位置">`;
-                if (task.region !== currentRegion) { html += `<td class="region-cell" rowspan="${regionCounts[task.region]}">${task.region}</td>`; currentRegion = task.region; }
+                
+                // 核心修正：只合併「連續」且「相同區域」的任務，避免排版互相擠壓崩潰
+                if (i === 0 || filteredTasks[i - 1].region !== task.region) {
+                    let rowspan = 1;
+                    for (let j = i + 1; j < filteredTasks.length; j++) {
+                        if (filteredTasks[j].region === task.region) rowspan++;
+                        else break;
+                    }
+                    html += `<td class="region-cell" rowspan="${rowspan}">${task.region}</td>`;
+                }
+                
                 html += `<td class="table-task-name">${task.name}</td>
                          <td style="text-align: center;"><span id="badge-${task.id}" class="status-badge" style="background-color: ${colors[task.state]}" onclick="changeState('${task.id}', ${task.isGroup}, '${task.parentId}', event)">${states[task.state]}</span></td>
                          <td class="exp-cell">+${formatNumber(task.exp)}</td></tr>`;
-            });
+            }
             tbody.innerHTML = html || `<tr><td colspan="4" style="padding:25px; color:var(--text-muted);">無符合條件的任務資料</td></tr>`;
         }
 
