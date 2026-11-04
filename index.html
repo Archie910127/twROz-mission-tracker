@@ -1184,13 +1184,45 @@
             if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } 
        }
 
-        // 動畫循環
+        // === 背景動態電競粒子網路 ===
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
         const pColors = ['#ff1e56', '#b517ff', '#00ff87'];
-        function createParticles() { for (let i = 0; i < 38; i++) { particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6, r: Math.random() * 2 + 1, c: pColors[i % pColors.length] }); } }
+        function createParticles() { 
+            particles = []; 
+            for (let i = 0; i < 38; i++) { 
+                particles.push({ 
+                    x: Math.random() * canvas.width, y: Math.random() * canvas.height, 
+                    vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6, 
+                    r: Math.random() * 2 + 1, c: pColors[i % pColors.length] 
+                }); 
+            } 
+        }
+        
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = p.c; ctx.shadowBlur = 8; ctx.shadowColor = p.c; ctx.fill();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        
         createParticles();
+        animateParticles();
 
         // 啟動應用程式
         initializeApp();
     </script>
 </body>
 </html>
+
