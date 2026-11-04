@@ -714,12 +714,12 @@
         /* === 1. 全域變數與資料庫設定 === */
         const states = ["未完成", "待完成", "可提交", "完成"];
         const colors = ["#ff1e56", "#ff9900", "#b517ff", "#00ff87"]; 
-        const STORAGE_KEY = "blueeyes_quest_data_v11_localcsv"; 
+        const STORAGE_KEY = "blueeyes_quest_data_final"; 
         
         let mapNodes = [];
         const tableData = [];
 
-        // ⚠️ 替換為與 index.html 同一個資料夾下的 CSV 檔案名稱 ⚠️
+        // ⚠️ 本地 CSV 檔案名稱 (必須與此 HTML 放在同一個資料夾) ⚠️
         const SHEET_CSV_URL = "mission_data.csv"; 
 
         const darkThemeBg = {
@@ -747,12 +747,13 @@
             try {
                 // 自動加上隨機參數避免瀏覽器快取 CSV
                 const response = await fetch(SHEET_CSV_URL + '?t=' + new Date().getTime());
+                if (!response.ok) throw new Error("HTTP error " + response.status);
                 const csvText = await response.text();
                 
-            Papa.parse(csvText, {
+                Papa.parse(csvText, {
                     header: true, 
                     skipEmptyLines: true,
-                    // 加入這行：自動清理所有欄位名稱前後的空白與隱形字元 (BOM)
+                    // ⚠️ 最關鍵的一行：自動清理標題列的隱形字元 (BOM)，防止找不到 Region
                     transformHeader: function(h) { return h.trim().replace(/^\uFEFF/, ''); },
                     complete: function(results) {
                         processRawData(results.data);
@@ -763,6 +764,12 @@
                         updatePrediction();
                     }
                 });
+            } catch (error) {
+                console.error("讀取任務資料失敗:", error);
+                alert("無法讀取本地 CSV 資料。\n請確認：\n1. 您的任務檔名確實叫做 mission_data.csv。\n2. 您必須使用 VS Code 的 Live Server 或將檔案上傳至 GitHub Pages，不可直接點兩下開啟 HTML 檔案。");
+            }
+        }
+
         function processRawData(data) {
             let lastRegion = "", lastCoord = "", lastTaskName = "";
             let currentTaskObj = null; 
@@ -798,6 +805,7 @@
                         title: currentTaskName,
                         hint: row.Hint ? row.Hint.trim() : "",
                         exp: parseInt((row.EXP || "0").replace(/,/g, '')),
+                        // 將 NPC 接取座標獨立出來
                         npcCoord: (row.NPC_Navi && row.NPC_Navi.trim() !== "") ? { label: "複製NPC接取座標", cmd: row.NPC_Navi.trim() } : null,
                         targetCoords: [],
                         state: 0
@@ -975,7 +983,7 @@
             const totalDoneExp = reqExp * (currPct / 100); const leftExp = Math.max(0, reqExp - totalDoneExp);
             document.getElementById("val-done-exp").innerText = formatNumber(Math.round(totalDoneExp)); document.getElementById("val-left-exp").innerText = formatNumber(Math.round(leftExp));
             const elapsedHours = Math.max(0.1, (now - startTime) / (1000 * 60 * 60));
-            const dailyStandardExp = tableData.reduce((sum, t) => sum + t.exp, 0); 
+            const dailyStandardExp = tableData.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0); 
             const origDays = dailyStandardExp > 0 ? (reqExp / dailyStandardExp) : 1; document.getElementById("val-orig-days").innerText = origDays.toFixed(1) + "天";
             document.getElementById("val-orig-finish").innerText = formatDateTime(new Date(startTime.getTime() + origDays * 24 * 60 * 60 * 1000));
             const expPerHour = elapsedHours > 0 ? (totalDoneExp / elapsedHours) : 0;
@@ -989,7 +997,7 @@
             document.getElementById("progress-bar").style.width = taskPctVal.toFixed(1) + "%";
             document.getElementById("progress-text").innerText = `${completedCount} / ${totalTasks} (${taskPctVal.toFixed(0)}%) ▾`;
             document.getElementById("task-count-text").innerText = `完成任務: ${completedCount} / ${totalTasks}`;
-            document.getElementById("today-exp-hud").innerText = "+" + formatNumber(completedTasks.reduce((sum, t) => sum + t.exp, 0));
+            document.getElementById("today-exp-hud").innerText = "+" + formatNumber(completedTasks.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0));
             saveToLocal();
         }
 
