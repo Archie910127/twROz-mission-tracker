@@ -749,7 +749,7 @@
                 const response = await fetch(SHEET_CSV_URL + '?t=' + new Date().getTime());
                 const csvText = await response.text();
                 
-              Papa.parse(csvText, {
+            Papa.parse(csvText, {
                     header: true, 
                     skipEmptyLines: true,
                     // 加入這行：自動清理所有欄位名稱前後的空白與隱形字元 (BOM)
@@ -763,12 +763,6 @@
                         updatePrediction();
                     }
                 });
-            } catch (error) {
-                console.error("讀取任務資料失敗:", error);
-                alert("無法讀取本地 CSV 資料，請確認您已將任務存為 mission_data.csv，並上傳至 GitHub，然後透過 GitHub Pages 網址開啟。");
-            }
-        }
-
         function processRawData(data) {
             let lastRegion = "", lastCoord = "", lastTaskName = "";
             let currentTaskObj = null; 
