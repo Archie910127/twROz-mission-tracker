@@ -594,12 +594,12 @@
     <!-- 頂部電競裝甲控制列 -->
     <div class="header-bar">
         <div class="brand-box">
-            <h2>Archie的每日任務追蹤_<span>←═╪</span> Blue°Eyes <span>═╪→</span></h2>
+            <h2>Archie的每日任務追蹤</h2>
         </div>
         <div class="header-controls">
             <!-- 新增：勾選任務規劃顯示面板 -->
             <div class="hud-stat-box hud-check-box">
-                <span style="color:var(--cyber-orange);">☑ 勾選任務:</span>
+                <span style="color:var(--cyber-orange);">☑ 勾選:</span>
                 <span id="selected-task-stats" style="color:#fff;">0 / 0 (約目前等級 0.00%)</span>
             </div>
 
@@ -1117,7 +1117,7 @@
             const selectedExp = selectedTasks.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0);
             const selectedPct = reqExp > 0 ? ((selectedExp / reqExp) * 100).toFixed(3) : "0.000";
             const statsEl = document.getElementById('selected-task-stats');
-            if (statsEl) statsEl.innerText = `${selectedCount} / ${totalTasks} (約 ${selectedPct}%)`;
+            if (statsEl) statsEl.innerText = `${selectedCount} / ${totalTasks} (約目前等級 ${selectedPct}%)`;
 
             saveToLocal();
         }
