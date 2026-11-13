@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archie的每日任務追蹤</title>
+    <!-- 引入 PapaParse 用於解析 CSV 資料 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* === 賽博龐克 電競風 全局配色與變數 === */
+        :root {
+            --bg-dark: #040108;
+            --panel-bg: rgba(11, 5, 20, 0.88);
+            --cyber-purple: #b517ff;
+            --cyber-purple-glow: rgba(181, 23, 255, 0.65);
+            --cyber-purple-dim: rgba(181, 23, 255, 0.18);
+            --cyber-red: #ff1e56;
+            --cyber-red-glow: rgba(255, 30, 86, 0.65);
+            --cyber-red-dim: rgba(255, 30, 86, 0.18);
+            --cyber-green: #00ff87;
+            --cyber-green-glow: rgba(0, 255, 135, 0.65);
+            --cyber-green-dim: rgba(0, 255, 135, 0.18);
+            --cyber-orange: #ff9900;
+            --text-main: #f0e6fa;
+            --text-muted: #8e7a9e;
+            --grid-line: rgba(181, 23, 255, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Segoe UI', 'Orbitron', '微軟正黑體', sans-serif; 
+            background-color: var(--bg-dark);
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 12px 16px 16px 16px; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+            user-select: none;
+            position: relative;
+        }
+
+        /* === 背景動態電競粒子畫布 & CRT 掃描線 === */
+        #bg-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .scanline-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 9998;
+            opacity: 0.4;
+        }
+
+        /* === 頂部科技裝甲狀態列 === */
+.header-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    z-index: 10;
+    position: relative;
+}
+        .brand-box {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        h2 { 
+            margin: 0; 
+            color: #fff; 
+            font-size: 22px; 
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, rgba(255, 30, 86, 0.3) 0%, rgba(181, 23, 255, 0.35) 50%, transparent 100%);
+            border-left: 6px solid var(--cyber-red);
+            border-bottom: 2px solid var(--cyber-purple);
+            padding: 8px 36px 8px 18px;
+            clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+            text-shadow: 0 0 12px var(--cyber-purple), 2px 0 2px var(--cyber-red);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            animation: glitch-skew 4s infinite linear alternate-reverse;
+        }
+        h2 span { 
+            color: var(--cyber-green); 
+            text-shadow: 0 0 12px var(--cyber-green);
+        }
+
+        @keyframes glitch-skew {
+            0%, 96%, 100% { transform: skew(0deg); }
+            97% { transform: skew(-3deg); text-shadow: -2px 0 var(--cyber-red), 2px 0 var(--cyber-green); }
+            98% { transform: skew(3deg); }
+        }
+
+        /* 頂部戰術工具列 */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .hud-stat-box {
+            background: rgba(11, 5, 20, 0.9);
+            border: 1px solid var(--cyber-purple);
+            border-right: 4px solid var(--cyber-green);
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            font-family: monospace;
+            clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+            box-shadow: 0 0 12px rgba(181, 23, 255, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 勾選任務專用的 HUD 樣式 */
+        .hud-check-box {
+            border-right-color: var(--cyber-orange) !important;
+            box-shadow: 0 0 12px rgba(255, 153, 0, 0.25) !important;
+        }
+        
+        #countdown-timer {
+            color: var(--cyber-red);
+            text-shadow: 0 0 8px var(--cyber-red-glow);
+            font-size: 18px; 
+            font-weight: 900;
+        }
+        .cyber-icon-btn {
+            background: var(--cyber-purple-dim);
+            border: 1px solid var(--cyber-purple);
+            color: var(--cyber-green);
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cyber-icon-btn:hover {
+            background: var(--cyber-purple);
+            color: #fff;
+            box-shadow: 0 0 18px var(--cyber-purple-glow);
+            transform: translateY(-1px);
+        }
+        .cyber-icon-btn.muted {
+            border-color: var(--cyber-red);
+            color: var(--cyber-red);
+            background: var(--cyber-red-dim);
+        }
+
+        /* 賽博龐克風核取方塊 (Checkbox) */
+        .cyber-checkbox {
+            appearance: none;
+            width: 16px; height: 16px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--cyber-orange);
+            border-radius: 2px;
+            outline: none; cursor: pointer;
+            position: relative;
+            vertical-align: middle;
+            transition: all 0.2s;
+            margin: 0;
+        }
+        .cyber-checkbox:checked { background: var(--cyber-orange); box-shadow: 0 0 10px var(--cyber-orange); }
+        .cyber-checkbox:checked::after {
+            content: '✔'; color: #000; font-weight: 900; font-size: 12px;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+
+        /* === 左右雙面板主容器 === */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            background-color: rgba(5, 2, 10, 0.85);
+            border-radius: 4px;
+            box-shadow: 0 0 35px rgba(181, 23, 255, 0.2), inset 0 0 15px rgba(0, 255, 135, 0.08);
+            border: 1px solid rgba(181, 23, 255, 0.5);
+            overflow: hidden; 
+            position: relative;
+            z-index: 10;
+        }
+
+        /* === 左側：戰術地圖區 === */
+        .map-pane {
+            flex: 1;
+            position: relative; 
+            background-color: #030106;
+            border-right: 2px solid var(--cyber-purple);
+            overflow: hidden; 
+            box-shadow: inset -10px 0 30px rgba(0,0,0,0.95); 
+        }
+
+        .map-scroll-area {
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            position: relative;
+            cursor: grab;
+        }
+        .map-scroll-area.dragging {
+            cursor: grabbing;
+            scroll-behavior: auto !important;
+        }
+
+        #map-container {
+            position: relative;
+            background-image: linear-gradient(rgba(8, 2, 16, 0.22), rgba(8, 2, 16, 0.22)), url('map_background.jpg');
+            background-color: #0a0514;
+            background-size: cover;
+            width: 1348px;
+            height: 741px;
+        }
+
+        #map-container::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(rgba(181, 23, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 135, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        .panel-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 95px;
+            background: var(--cyber-red-dim);
+            border: 2px solid var(--cyber-red);
+            border-right: none;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 500;
+            backdrop-filter: blur(6px);
+            transition: all 0.25s ease;
+            box-shadow: -4px 0 18px var(--cyber-red-glow);
+            font-size: 14px;
+            clip-path: polygon(0 12px, 100% 0, 100% 100%, 0 calc(100% - 12px));
+        }
+        .panel-toggle-btn:hover {
+            background: var(--cyber-red);
+            width: 34px;
+            box-shadow: -4px 0 25px var(--cyber-red);
+        }
+
+        .offscreen-indicator {
+            position: absolute;
+            background: rgba(13, 4, 22, 0.94);
+            color: var(--cyber-red);
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s ease;
+            z-index: 150;
+            box-shadow: 0 0 18px var(--cyber-red-glow), inset 0 0 10px var(--cyber-red-dim);
+            border: 1px solid var(--cyber-red);
+            letter-spacing: 1.5px;
+            clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: radar-blink 1.5s infinite alternate;
+        }
+        @keyframes radar-blink {
+            0% { border-color: var(--cyber-red); box-shadow: 0 0 10px var(--cyber-red-glow); }
+            100% { border-color: #fff; box-shadow: 0 0 22px var(--cyber-red); }
+        }
+        .offscreen-indicator:hover {
+            background: var(--cyber-red);
+            color: #fff;
+            transform: scale(1.05);
+        }
+        .top-indicator { top: 18px; left: 50%; transform: translateX(-50%) translateY(-20px); }
+        .bottom-indicator { bottom: 18px; left: 50%; transform: translateX(-50%) translateY(20px); }
+        .left-indicator { top: 50%; left: 18px; transform: translateY(-50%) translateX(-20px); clip-path: polygon(0 0, 100% 10px, 100% calc(100% - 10px), 0 100%); }
+        .right-indicator { top: 50%; right: 45px; transform: translateY(-50%) translateX(20px); clip-path: polygon(0 10px, 100% 0, 100% 100%, 0 calc(100% - 10px)); }
+        .top-indicator.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+        .bottom-indicator.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+        .left-indicator.visible { opacity: 1; pointer-events: auto; transform: translateY(-50%) translateX(0); }
+        .right-indicator.visible { opacity: 1; pointer-events: auto; transform: translateY(-50%) translateX(0); }
+
+        /* === 升級預測與戰術指揮面板 === */
+        #global-progress {
+            position: absolute;
+            bottom: 22px;
+            right: 40px;
+            width: 395px;
+            background-color: var(--panel-bg);
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border: 1px solid rgba(181, 23, 255, 0.55);
+            border-right: 4px solid var(--cyber-green);
+            border-bottom: 4px solid var(--cyber-purple);
+            padding: 16px 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.95), 0 0 25px rgba(181, 23, 255, 0.25);
+            z-index: 200; 
+            font-size: 14px;
+            clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 22px);
+            backdrop-filter: blur(12px);
+        }
+        
+        #global-progress::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, var(--cyber-red), var(--cyber-purple), var(--cyber-green));
+        }
+
+        .progress-header-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--cyber-purple-dim);
+        }
+        .progress-title { font-size: 15px; font-weight: 900; color: #fff; letter-spacing: 1.5px; text-shadow: 0 0 10px var(--cyber-purple-glow); }
+        #progress-text { color: var(--cyber-green); text-shadow: 0 0 10px var(--cyber-green-glow); font-size: 16px; font-weight: 900; font-family: monospace; }
+        
+        .progress-bar-container { 
+            width: 100%; height: 12px; background: #05020a; border: 1px solid var(--cyber-purple); margin: 12px 0 8px 0; position: relative; overflow: hidden;
+            clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+        }
+        .progress-bar-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, var(--cyber-red), var(--cyber-purple), var(--cyber-green)); 
+            background-size: 200% 100%;
+            width: 0%; 
+            transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); 
+            box-shadow: 0 0 15px var(--cyber-green-glow); 
+            animation: flow-gradient 2.5s infinite linear;
+        }
+        @keyframes flow-gradient {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        #prediction-content {
+            display: none;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(181, 23, 255, 0.4);
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .pred-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 7px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px;
+        }
+        .pred-label { color: var(--text-muted); font-size: 13px; font-weight: 600; }
+        .pred-value { color: #fff; font-weight: 700; text-align: right; font-family: monospace; font-size: 14px; }
+        
+        .editable-input {
+            background: rgba(181, 23, 255, 0.12);
+            color: var(--cyber-green);
+            border: 1px solid var(--cyber-purple);
+            padding: 3px 8px;
+            font-weight: bold;
+            font-size: 13px;
+            font-family: monospace;
+            text-align: center;
+            width: 135px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .editable-input:focus { 
+            border-color: var(--cyber-green);
+            box-shadow: 0 0 12px var(--cyber-green-glow); 
+            background: rgba(0, 255, 135, 0.15); 
+            color: #fff;
+        }
+
+        .progress-footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .batch-controls { display: flex; gap: 10px; margin-top: 10px; }
+        .hud-btn {
+            flex: 1; padding: 8px 0; font-size: 13px; font-weight: 900; text-align: center; cursor: pointer; transition: all 0.2s ease; letter-spacing: 1px;
+            clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+        }
+        .btn-reset { background: var(--cyber-red-dim); color: var(--cyber-red); border: 1px solid var(--cyber-red); }
+        .btn-reset:hover { background: var(--cyber-red); color: #fff; box-shadow: 0 0 18px var(--cyber-red-glow); transform: translateY(-1px); }
+        .btn-complete { background: var(--cyber-green-dim); color: var(--cyber-green); border: 1px solid var(--cyber-green); }
+        .btn-complete:hover { background: var(--cyber-green); color: #000; box-shadow: 0 0 18px var(--cyber-green-glow); transform: translateY(-1px); }
+
+        /* === 右側：機甲電競表格區 === */
+        .table-pane {
+            width: 530px; /* 微調加寬以容納 Checkbox */
+            background-color: var(--panel-bg);
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 25px 25px;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+            box-shadow: inset 10px 0 30px rgba(0,0,0,0.95);
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        .table-pane.collapsed {
+            width: 0px;
+            opacity: 0;
+            overflow: hidden;
+            border: none;
+        }
+
+        .table-filter-bar {
+            padding: 12px 14px 10px 14px;
+            background: rgba(8, 3, 15, 0.96);
+            border-bottom: 1px solid var(--cyber-purple);
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.75);
+            border: 1px solid var(--cyber-purple);
+            padding: 6px 12px;
+            clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+            transition: all 0.2s;
+        }
+        .search-box:focus-within { border-color: var(--cyber-green); box-shadow: 0 0 12px var(--cyber-green-glow); }
+        .search-box input { background: transparent; border: none; outline: none; color: #fff; width: 100%; font-size: 13px; }
+        
+        .filter-tags { display: flex; gap: 6px; }
+        .filter-pill {
+            flex: 1; padding: 4px 0; font-size: 12px; font-weight: bold; text-align: center;
+            border: 1px solid rgba(181, 23, 255, 0.35); color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+            clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+        }
+        .filter-pill.active, .filter-pill:hover { border-color: var(--cyber-green); color: #000; background: var(--cyber-green); box-shadow: 0 0 12px var(--cyber-green-glow); }
+
+        .table-scroll-wrapper { flex: 1; overflow-y: auto; }
+        #task-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; white-space: nowrap; }
+        #task-table th { 
+            background-color: #140824; color: var(--cyber-green); font-weight: 900; padding: 11px 4px; text-align: center; 
+            position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--cyber-green); box-shadow: 0 4px 12px rgba(0,0,0,0.9); font-size: 13px; letter-spacing: 1px;
+        }
+        #task-table td { padding: 9px 4px; text-align: center; vertical-align: middle; border-bottom: 1px solid rgba(181, 23, 255, 0.15); }
+        #task-table tbody tr { transition: all 0.15s ease; cursor: pointer; }
+        #task-table tbody tr:hover { background: linear-gradient(90deg, rgba(255, 30, 86, 0.18), rgba(181, 23, 255, 0.25), rgba(0, 255, 135, 0.15)) !important; box-shadow: inset 4px 0 0 var(--cyber-green); }
+        
+        .table-task-name { text-align: left !important; font-weight: 700; color: #fff; font-size: 13px; }
+        .region-cell { font-weight: 900; color: var(--cyber-purple); border-right: 1px solid rgba(181, 23, 255, 0.25); text-shadow: 0 0 8px var(--cyber-purple-glow); font-size: 13px; }
+        .exp-cell { color: var(--cyber-green); font-family: monospace; font-size: 13px; font-weight: bold; }
+
+        .status-badge {
+            display: inline-block; padding: 4px 8px; font-size: 12px; font-weight: 900; color: white; cursor: pointer; transition: all 0.2s ease; width: 70px;
+            clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+        }
+        .status-badge:hover { transform: scale(1.08); filter: brightness(1.25); }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #07030d; }
+        ::-webkit-scrollbar-thumb { background: var(--cyber-purple); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--cyber-green); }
+
+        /* === 地圖標記與動態光環 === */
+        .node-container { position: absolute; }
+
+        @keyframes marker-pulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.22); filter: brightness(1.5); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        @keyframes group-pulse {
+            0% { box-shadow: 0 0 8px var(--cyber-purple-glow); border-color: var(--cyber-purple); }
+            50% { box-shadow: 0 0 22px var(--cyber-purple), inset 0 0 12px var(--cyber-purple-glow); border-color: var(--cyber-green); }
+            100% { box-shadow: 0 0 8px var(--cyber-purple-glow); border-color: var(--cyber-purple); }
+        }
+        @keyframes target-ping {
+            0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
+            100% { transform: scale(3.2) rotate(180deg); opacity: 0; }
+        }
+        .radar-ping {
+            position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; margin-top: -22px; margin-left: -22px;
+            border: 2px dashed var(--cyber-green); border-radius: 50%; pointer-events: none; animation: target-ping 1.1s ease-out 3; z-index: 100; box-shadow: 0 0 15px var(--cyber-green);
+        }
+
+        .single-marker { 
+            width: 36px; height: 36px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; 
+            animation: marker-pulse 1.3s infinite ease-in-out; font-size: 30px; line-height: 1;
+        }
+        .single-marker:hover { transform: scale(1.4) rotate(15deg) !important; z-index: 10; animation: none; filter: brightness(1.8); }
+        
+        .group-marker { 
+            min-width: 60px; height: 55px; padding: 0 4px;
+            background: rgba(11, 4, 19, 0.92); border: 2px solid var(--cyber-purple); cursor: pointer; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; backdrop-filter: blur(4px); 
+            animation: group-pulse 1.5s infinite ease-in-out; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+        .group-marker:hover { border-color: var(--cyber-green); box-shadow: 0 0 25px var(--cyber-green-glow) !important; transform: scale(1.18) !important; z-index: 10; animation: none;}
+        
+        .group-title { 
+            font-size: 11px; font-weight: 900; margin-bottom: 4px; color: #fff; text-shadow: 0 0 5px var(--cyber-purple); 
+            white-space: nowrap; text-align: center;
+        }
+        .mini-dots-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; width: 42px; }
+        .mini-dot { width: 10px; height: 10px; border: 1px solid rgba(255,255,255,0.8); } 
+        
+        /* 彈窗面板 */
+        .popup { 
+            display: none; position: absolute; top: 55px; left: -15px; background: rgba(11, 5, 20, 0.96); border: 1px solid var(--cyber-purple); border-top: 3px solid var(--cyber-green);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.95), 0 0 30px var(--cyber-purple-glow); z-index: 120; color: white;
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%); backdrop-filter: blur(10px); animation: popup-open 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+        @keyframes popup-open { 0% { opacity: 0; transform: scale(0.9) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        .single-popup { width: 315px; } 
+        .group-popup { width: max-content; min-width: 550px; max-width: 610px; } 
+        
+        .task-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 16px; }
+        .task-card { 
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(181, 23, 255, 0.35); border-top: 2px solid var(--cyber-purple); padding: 14px; display: flex; flex-direction: column;
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+        }
+        
+        .popup-header { background: #050208; padding: 10px 16px; font-size: 15px; font-weight: 900; border-bottom: 1px solid var(--cyber-purple-dim); display: flex; justify-content: space-between; align-items: center; color: var(--cyber-green); }
+        .close-btn { color: #888; cursor: pointer; font-size: 20px; transition: color 0.2s;}
+        .close-btn:hover { color: var(--cyber-red); text-shadow: 0 0 10px var(--cyber-red);}
+        
+        .info-title { display: flex; align-items: flex-start; font-size: 17px; font-weight: 900; color: #fff; margin-bottom: 4px; line-height: 1.2; } 
+        .task-exp { font-size: 13px; color: var(--cyber-green); font-family: monospace; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;}
+        .task-hint { font-size: 13px; color: #d0bfe0; background: rgba(0, 0, 0, 0.65); padding: 8px 10px; margin-bottom: 12px; border-left: 3px solid var(--cyber-red); line-height: 1.5; white-space: pre-wrap; } 
+        
+        .coord-buttons { display: flex; flex-direction: column; gap: 6px; }
+        .status-btn { 
+            display: block; width: 100%; padding: 10px 0; text-align: center; font-size: 14px; font-weight: 900; color: white; cursor: pointer; margin: 0; 
+            border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; letter-spacing: 1px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+        }
+        .status-btn:hover { filter: brightness(1.25); transform: scale(1.02); }
+        
+        .copy-btn { 
+            background: rgba(181, 23, 255, 0.14); color: #e6dcf0; border: 1px solid var(--cyber-purple); padding: 8px 10px; font-size: 13px; font-weight: bold; cursor: pointer; text-align: left; transition: all 0.2s; display: flex; align-items: center;
+            clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+        } 
+        .copy-btn::before { content: '⌖'; margin-right: 8px; font-size: 15px; color: var(--cyber-green);}
+        .copy-btn:hover { background: var(--cyber-purple); color: #fff; border-color: var(--cyber-green); box-shadow: 0 0 12px var(--cyber-purple-glow);}
+
+        /* === 賽博龐克 HUD 浮動訊息 === */
+        #hud-toast {
+            position: fixed; top: 22px; right: 25px; background: rgba(11, 5, 20, 0.96); border-left: 5px solid var(--cyber-green); border-right: 2px solid var(--cyber-purple); border-top: 1px solid var(--cyber-green); border-bottom: 1px solid var(--cyber-purple);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9), 0 0 22px var(--cyber-green-glow); color: #fff; padding: 12px 22px; font-size: 14px; font-weight: 900; z-index: 9999;
+            transform: translateX(130%); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%); display: flex; align-items: center; gap: 10px;
+        }
+        #hud-toast.show { transform: translateX(0); }
+    </style>
+</head>
+<body>
+
+    <!-- 電競動態粒子背景 & CRT 掃描線 -->
+    <canvas id="bg-canvas"></canvas>
+    <div class="scanline-overlay"></div>
+
+    <!-- 頂部電競裝甲控制列 -->
+ <div class="brand-box">
+    <div id="be-nav" data-active="daily"></div>
+</div>
+        <div class="header-controls">
+            <!-- 新增：勾選任務規劃顯示面板 -->
+            <div class="hud-stat-box hud-check-box">
+                <span style="color:var(--cyber-orange);">☑ 勾選:</span>
+                <span id="selected-task-stats" style="color:#fff;">0 / 0 (約目前等級 0.00%)</span>
+            </div>
+
+            <div class="hud-stat-box">
+                <span style="color:var(--text-muted);">⏳ 距離重置:</span>
+                <span id="countdown-timer">00:00:00</span>
+            </div>
+            <div class="hud-stat-box">
+                <span style="color:var(--cyber-red);">⌖ RADAR:</span>
+                <span id="radar-coords" style="color:var(--cyber-green);">X: 0000 | Y: 0000</span>
+            </div>
+            <div class="hud-stat-box">
+                <span style="color:var(--cyber-purple);">⚡ 獲得經驗:</span>
+                <span id="today-exp-hud" style="color:#fff;">0</span>
+            </div>
+            <button id="sfx-btn" class="cyber-icon-btn" onclick="toggleSound()">
+                🔊 戰術音效: ON
+            </button>
+        </div>
+    </div>
+    
+    <div class="main-layout">
+        <div class="map-pane">
+            <div class="panel-toggle-btn" id="table-toggle-btn" onclick="toggleTablePanel()">▶</div>
+
+            <!-- 升級與戰術進度面板 -->
+            <div id="global-progress">
+                <div class="progress-header-toggle" onclick="togglePredictionPanel()">
+                    <span class="progress-title">⚔️ 戰術任務達成率</span>
+                    <span id="progress-text">0 / 0 (0%) ▾</span>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar-fill"></div>
+                </div>
+
+                <div class="progress-footer-bar">
+                    <span style="color: var(--text-muted);" id="task-count-text">完成任務: 0 / 0</span>
+                    <span style="color: var(--cyber-green); font-size: 12px; cursor: pointer; font-weight:bold;" onclick="togglePredictionPanel()">[展開等級預測系統]</span>
+                </div>
+
+                <div id="prediction-content">
+                    <div class="pred-row">
+                        <span class="pred-label">目標等級</span>
+                        <input type="number" id="input-target-lv" class="editable-input" value="113" min="1" max="120" oninput="updatePrediction()">
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">升級所需經驗</span>
+                        <span id="val-req-exp" class="pred-value">29,381,931,175</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">開始時間</span>
+                        <input type="text" id="input-start-time" class="editable-input" value="2026/10/25 8:00" oninput="updatePrediction()">
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前時間</span>
+                        <span id="val-curr-time" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前經驗 (%)</span>
+                        <input type="text" id="input-curr-pct" class="editable-input" value="60.9%" oninput="updatePrediction()">
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">原預計天數</span>
+                        <span id="val-orig-days" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">原預計完成時間</span>
+                        <span id="val-orig-finish" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">剩餘天數</span>
+                        <span id="val-left-days" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">預計完成時間</span>
+                        <span id="val-pred-finish" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前效率完成預估</span>
+                        <span id="val-eff-finish" class="pred-value" style="color:var(--cyber-green); text-shadow: 0 0 6px var(--cyber-green);">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">目前效率</span>
+                        <span id="val-eff-pct" class="pred-value" style="background:var(--cyber-purple); color:#fff; padding:2px 8px; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); box-shadow: 0 0 8px var(--cyber-purple);">-</span>
+                    </div>
+                    <div class="pred-row">
+                        <span class="pred-label">已完成經驗</span>
+                        <span id="val-done-exp" class="pred-value">-</span>
+                    </div>
+                    <div class="pred-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+                        <span class="pred-label">剩餘經驗</span>
+                        <span id="val-left-exp" class="pred-value">-</span>
+                    </div>
+                </div>
+
+                <div class="batch-controls">
+                    <div class="hud-btn btn-reset" onclick="resetAll()">一鍵重置</div>
+                    <div class="hud-btn btn-complete" onclick="completeAll()">一鍵全完成</div>
+                </div>
+            </div>
+            
+            <!-- 智慧邊緣雷達 -->
+            <div id="ind-top" class="offscreen-indicator top-indicator" onclick="jumpToNearestOffscreen('top')">▲ 上方尚有未完成目標 [點擊鎖定]</div>
+            <div id="ind-bottom" class="offscreen-indicator bottom-indicator" onclick="jumpToNearestOffscreen('bottom')">▼ 下方尚有未完成目標 [點擊鎖定]</div>
+            <div id="ind-left" class="offscreen-indicator left-indicator" onclick="jumpToNearestOffscreen('left')">◀ 左方目標</div>
+            <div id="ind-right" class="offscreen-indicator right-indicator" onclick="jumpToNearestOffscreen('right')">▶ 右方目標</div>
+
+            <div class="map-scroll-area" id="map-scroll-area">
+                <div id="map-container"></div>
+            </div>
+        </div>
+
+        <!-- 右側：任務狀態與速查表格 -->
+        <div class="table-pane" id="table-pane">
+            <div class="table-filter-bar">
+                <div class="search-box">
+                    <span style="color:var(--cyber-green); margin-right:8px;">⌖</span>
+                    <input type="text" id="task-search-input" placeholder="搜尋任務名稱、怪物或區域..." oninput="handleFilterChange()">
+                </div>
+                <div class="filter-tags">
+                    <div class="filter-pill active" onclick="setFilterState('all', this)">全部</div>
+                    <div class="filter-pill" onclick="setFilterState('0', this)">未完成</div>
+                    <div class="filter-pill" onclick="setFilterState('1', this)">待完成</div>
+                    <div class="filter-pill" onclick="setFilterState('2', this)">可提交</div>
+                    <div class="filter-pill" onclick="setFilterState('3', this)">已完成</div>
+                </div>
+            </div>
+            <div class="table-scroll-wrapper">
+                <table id="task-table">
+                    <thead>
+                        <tr>
+                            <th width="6%"><input type="checkbox" class="cyber-checkbox" id="check-all-table" checked onchange="toggleAllSelection(this.checked)" title="全選/全不選"></th>
+                            <th width="14%">區域</th>
+                            <th width="40%">任務目標 (點擊定位)</th>
+                            <th width="20%">狀態</th>
+                            <th width="20%">經驗值</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD 提示訊息 -->
+    <div id="hud-toast"><span style="color:var(--cyber-green)">⚡</span><span id="toast-msg">提示訊息</span></div>
+
+    <script>
+        /* === 1. 全域變數與資料庫設定 === */
+        const states = ["未完成", "待完成", "可提交", "完成"];
+        const colors = ["#ff1e56", "#ff9900", "#b517ff", "#00ff87"]; 
+        const STORAGE_KEY = "blueeyes_quest_data_final"; 
+        
+        let mapNodes = [];
+        const tableData = [];
+
+        // ⚠️ 本地 CSV 檔案名稱 (必須與此 HTML 放在同一個資料夾) ⚠️
+        const SHEET_CSV_URL = "mission_data.csv"; 
+
+        const darkThemeBg = {
+            juno: "rgba(255, 255, 255, 0.02)", hugelTown: "rgba(255, 255, 255, 0.04)", hugel: "rgba(255, 255, 255, 0.02)",
+            einbech: "rgba(255, 255, 255, 0.04)", lhzTown: "rgba(255, 255, 255, 0.02)", lhz: "rgba(255, 255, 255, 0.04)", event: "rgba(255, 255, 255, 0.02)"
+        };
+
+        const expTable = {
+            1: 2443, 2: 2711, 3: 3009, 4: 3339, 5: 3706, 6: 4113, 7: 4565, 8: 5067, 9: 5624, 10: 6242,
+            11: 6928, 12: 7690, 13: 8535, 14: 9473, 15: 10515, 16: 11671, 17: 12954, 18: 14378, 19: 15959, 20: 17714,
+            21: 19662, 22: 21824, 23: 24224, 24: 26888, 25: 29845, 26: 33127, 27: 36770, 28: 40814, 29: 45303, 30: 50286,
+            31: 55817, 32: 61956, 33: 68771, 34: 76335, 35: 84731, 36: 94051, 37: 104396, 38: 115879, 39: 128625, 40: 142773,
+            41: 158478, 42: 175910, 43: 195260, 44: 216738, 45: 240579, 46: 267042, 47: 296416, 48: 329021, 49: 365213, 50: 434603,
+            51: 1037509, 52: 1525139, 53: 2241953, 54: 3295672, 55: 4844639, 56: 7121618, 57: 10468780, 58: 15389107, 59: 22621987, 60: 22621987,
+            61: 25789065, 62: 29399534, 63: 33515469, 64: 38207635, 65: 43556704, 66: 49654642, 67: 56606292, 68: 64531173, 69: 73565537, 70: 83864712,
+            71: 94767124, 72: 107086850, 73: 121008141, 74: 136739199, 75: 154515294, 76: 174602283, 77: 197300579, 78: 222949654, 79: 251933109, 80: 284684413,
+            81: 318846542, 82: 357108127, 83: 399961102, 84: 447956434, 85: 501711206, 86: 561916551, 87: 629346536, 88: 704868120, 89: 789452294, 90: 884186569,
+            91: 990288957, 92: 1109123631, 93: 1242218466, 94: 1391284681, 95: 1558238842, 96: 1745227503, 97: 1954654803, 98: 2189213379, 99: 2451918984, 100: 2746149262,
+            101: 3295379114, 102: 3954454936, 103: 4745345923, 104: 5694415107, 105: 6833298128, 106: 8199957753, 107: 9839949303, 108: 11807939163, 109: 14169526995, 110: 17003432394,
+            111: 20404118872, 112: 24484942646, 113: 29381931175, 114: 35258317410, 115: 42309980892, 116: 50771977070, 117: 60926372484, 118: 73111164980, 119: 87733976376, 120: 105280771651
+        };
+
+        /* === 2. 本地資料庫抓取與解析 (支援合併儲存格與分離座標) === */
+        async function initializeApp() {
+            try {
+                const response = await fetch(SHEET_CSV_URL + '?t=' + new Date().getTime());
+                if (!response.ok) throw new Error("HTTP error " + response.status);
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true, 
+                    skipEmptyLines: true,
+                    // 清理 BOM
+                    transformHeader: function(h) { return h.trim().replace(/^\uFEFF/, ''); },
+                    complete: function(results) {
+                        processRawData(results.data);
+                        generateTableData(); 
+                        loadFromLocal();
+                        renderMap();
+                        renderTable();
+                        updatePrediction();
+                    }
+                });
+            } catch (error) {
+                console.error("讀取任務資料失敗:", error);
+                alert("無法讀取本地 CSV 資料。\n請確認：\n1. 您的任務檔名確實叫做 mission_data.csv。\n2. 您必須使用 VS Code 的 Live Server 或將檔案上傳至 GitHub Pages。");
+            }
+        }
+
+        function processRawData(data) {
+            let lastRegion = "", lastCoord = "", lastTaskName = "";
+            let currentTaskObj = null; 
+            const groupsMap = {}; 
+
+            data.forEach(row => {
+                if (row.Region && row.Region.trim() !== "") lastRegion = row.Region.trim();
+                else row.Region = lastRegion;
+
+                if (row.Coord && row.Coord.trim() !== "") lastCoord = row.Coord.trim();
+                else row.Coord = lastCoord;
+
+                let x = 0, y = 0;
+                if (lastCoord) {
+                    const lastCommaIndex = lastCoord.lastIndexOf(',');
+                    if (lastCommaIndex !== -1) {
+                        const rawX = lastCoord.substring(0, lastCommaIndex).replace(/,/g, '');
+                        const rawY = lastCoord.substring(lastCommaIndex + 1);
+                        x = parseInt(rawX.trim());
+                        y = parseInt(rawY.trim());
+                    }
+                }
+
+                const currentTaskName = row.TaskName ? row.TaskName.trim() : "";
+                
+                if (currentTaskName !== "" && currentTaskName !== lastTaskName) {
+                    lastTaskName = currentTaskName;
+                    currentTaskObj = {
+                        id: `task_${x}_${y}_${Math.random().toString(36).substr(2, 5)}`,
+                        title: currentTaskName,
+                        hint: row.Hint ? row.Hint.trim() : "",
+                        exp: parseInt((row.EXP || "0").replace(/,/g, '')),
+                        npcCoord: (row.NPC_Navi && row.NPC_Navi.trim() !== "") ? { label: "複製NPC接取座標", cmd: row.NPC_Navi.trim() } : null,
+                        targetCoords: [],
+                        state: 0,
+                        selected: true // 新增：預設全勾選
+                    };
+
+                    if (row.Submit_Navi && row.Submit_Navi.trim() !== "") {
+                        const btnLabel = row.Submit_NPC ? `複製 ${row.Submit_NPC.trim()} 座標` : "複製地點座標";
+                        currentTaskObj.targetCoords.push({ label: btnLabel, cmd: row.Submit_Navi.trim() });
+                    }
+
+                    const coordKey = `${x}_${y}`;
+                    if (!groupsMap[coordKey]) groupsMap[coordKey] = { x: x, y: y, region: lastRegion, tasks: [] };
+                    groupsMap[coordKey].tasks.push(currentTaskObj);
+
+                } else if (currentTaskName === "" && currentTaskObj !== null) {
+                    if (row.Submit_Navi && row.Submit_Navi.trim() !== "") {
+                        const btnLabel = row.Submit_NPC ? `複製 ${row.Submit_NPC.trim()} 座標` : "複製地點座標";
+                        currentTaskObj.targetCoords.push({ label: btnLabel, cmd: row.Submit_Navi.trim() });
+                    }
+                }
+            });
+
+            mapNodes = [];
+            let groupCounter = 1;
+            const bgMapping = { "朱諾": darkThemeBg.juno, "毀葛 (城鎮)": darkThemeBg.hugelTown, "毀葛": darkThemeBg.hugel, "艾音 (僅採集任務)": darkThemeBg.einbech, "企都 (城鎮)": darkThemeBg.lhzTown, "企都": darkThemeBg.lhz, "活動": darkThemeBg.event };
+
+            for (const key in groupsMap) {
+                const g = groupsMap[key];
+                const bgColors = bgMapping[g.region] || "rgba(255, 255, 255, 0.02)";
+
+                if (g.tasks.length === 1) {
+                    const t = g.tasks[0];
+                    mapNodes.push({
+                        type: "single", id: t.id, x: g.x, y: g.y, title: t.title, hint: t.hint, exp: t.exp,
+                        npcCoord: t.npcCoord, targetCoords: t.targetCoords, state: 0, region: g.region, bgColor: bgColors,
+                        selected: t.selected
+                    });
+                } else {
+                    mapNodes.push({
+                        type: "group", id: `grp_${groupCounter++}`, x: g.x, y: g.y, title: g.region, markerLabel: g.region.split(' ')[0], 
+                        region: g.region, bgColor: bgColors, tasks: g.tasks
+                    });
+                }
+            }
+        }
+
+        function generateTableData() {
+            tableData.length = 0;
+            mapNodes.forEach(node => {
+                if (node.type === "single") tableData.push({ region: node.region, bgColor: node.bgColor, id: node.id, name: node.title, exp: node.exp, state: node.state, hint: node.hint, isGroup: false, parentId: null, x: node.x, y: node.y, selected: node.selected });
+                else if (node.type === "group") node.tasks.forEach(task => tableData.push({ region: node.region, bgColor: node.bgColor, id: task.id, name: task.title, exp: task.exp, state: task.state, hint: task.hint, isGroup: true, parentId: node.id, x: node.x, y: node.y, selected: task.selected }));
+            });
+        }
+
+        /* === 3. 介面互動與音效邏輯 === */
+        const container = document.getElementById("map-container");
+        const scrollArea = document.getElementById("map-scroll-area");
+        const tbody = document.getElementById("task-table").querySelector("tbody");
+        let activePopup = null;
+        let isTableCollapsed = false;
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        let soundEnabled = true;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        function playCyberSfx(type) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if (type === 'click') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1400, now + 0.06);
+                    gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06); osc.start(now); osc.stop(now + 0.06);
+                } else if (type === 'complete') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(523.25, now); osc.frequency.setValueAtTime(783.99, now + 0.07); osc.frequency.setValueAtTime(1046.50, now + 0.14);
+                    gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28); osc.start(now); osc.stop(now + 0.28);
+                } else if (type === 'radar') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(320, now); osc.frequency.exponentialRampToValueAtTime(960, now + 0.15);
+                    gain.gain.setValueAtTime(0.06, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); osc.start(now); osc.stop(now + 0.15);
+                }
+            } catch (e) {}
+        }
+        window.toggleSound = function() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('sfx-btn');
+            btn.innerText = soundEnabled ? '🔊 戰術音效: ON' : '🔇 戰術音效: OFF';
+            btn.classList.toggle('muted', !soundEnabled);
+            if (soundEnabled) playCyberSfx('click');
+        };
+
+        function updateServerCountdown() {
+            const now = new Date(); let resetTime = new Date(now); resetTime.setHours(4, 0, 0, 0);
+            if (now >= resetTime) resetTime.setDate(resetTime.getDate() + 1);
+            const diff = resetTime - now;
+            document.getElementById('countdown-timer').innerText = `${String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, '0')}:${String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0')}:${String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, '0')}`;
+        }
+        setInterval(updateServerCountdown, 1000); updateServerCountdown();
+
+        /* === 4. 地圖拖曳與功能函數 === */
+        let isDraggingMap = false; let startDragX, startDragY, scrollLeftStart, scrollTopStart;
+        scrollArea.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.node-container') || e.target.closest('.popup')) return;
+            isDraggingMap = true; scrollArea.classList.add('dragging');
+            startDragX = e.pageX - scrollArea.offsetLeft; startDragY = e.pageY - scrollArea.offsetTop;
+            scrollLeftStart = scrollArea.scrollLeft; scrollTopStart = scrollArea.scrollTop;
+        });
+        window.addEventListener('mouseup', () => { isDraggingMap = false; scrollArea.classList.remove('dragging'); });
+        scrollArea.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
+            document.getElementById('radar-coords').innerText = `X: ${String(Math.max(0, Math.round(e.clientX - rect.left))).padStart(4, '0')} | Y: ${String(Math.max(0, Math.round(e.clientY - rect.top))).padStart(4, '0')}`;
+            if (!isDraggingMap) return; e.preventDefault();
+            scrollArea.scrollLeft = scrollLeftStart - ((e.pageX - scrollArea.offsetLeft) - startDragX);
+            scrollArea.scrollTop = scrollTopStart - ((e.pageY - scrollArea.offsetTop) - startDragY);
+        });
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById("hud-toast"); document.getElementById("toast-msg").innerText = msg;
+            toast.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+        }
+
+        window.toggleTablePanel = function() {
+            playCyberSfx('click'); isTableCollapsed = !isTableCollapsed;
+            const pane = document.getElementById("table-pane"); const btn = document.getElementById("table-toggle-btn");
+            if(isTableCollapsed) { pane.classList.add("collapsed"); btn.innerHTML = "◀"; } else { pane.classList.remove("collapsed"); btn.innerHTML = "▶"; }
+            localStorage.setItem("blueeyes_table_collapsed", isTableCollapsed); setTimeout(checkOffscreenTasks, 310);
+        };
+        window.togglePredictionPanel = function() {
+            playCyberSfx('click'); const content = document.getElementById("prediction-content"); const isExpanded = content.style.display === "block";
+            content.style.display = isExpanded ? "none" : "block"; localStorage.setItem("blueeyes_panel_expanded", !isExpanded);
+        };
+
+        function saveToLocal() {
+            const stateData = { 
+                tasks: {}, 
+                selectedTasks: {}, // 儲存勾選狀態
+                targetLv: document.getElementById("input-target-lv").value, 
+                startTime: document.getElementById("input-start-time").value, 
+                currPct: document.getElementById("input-curr-pct").value, 
+                isExpanded: document.getElementById("prediction-content").style.display === "block" 
+            };
+            tableData.forEach(t => {
+                stateData.tasks[t.id] = t.state;
+                stateData.selectedTasks[t.id] = t.selected;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stateData));
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.tasks) {
+                        tableData.forEach(t => {
+                            // 載入完成狀態
+                            if (data.tasks[t.id] !== undefined) {
+                                t.state = data.tasks[t.id];
+                                if (!t.isGroup) { const n = mapNodes.find(n => n.id === t.id); if(n) n.state = t.state; } 
+                                else { const n = mapNodes.find(n => n.id === t.parentId); if(n) { const tk = n.tasks.find(tk => tk.id === t.id); if(tk) tk.state = t.state; } }
+                            }
+                            // 載入勾選狀態
+                            if (data.selectedTasks && data.selectedTasks[t.id] !== undefined) {
+                                t.selected = data.selectedTasks[t.id];
+                                if (!t.isGroup) { const n = mapNodes.find(n => n.id === t.id); if(n) n.selected = t.selected; } 
+                                else { const n = mapNodes.find(n => n.id === t.parentId); if(n) { const tk = n.tasks.find(tk => tk.id === t.id); if(tk) tk.selected = t.selected; } }
+                            }
+                        });
+                    }
+                    if (data.targetLv) document.getElementById("input-target-lv").value = data.targetLv;
+                    if (data.startTime) document.getElementById("input-start-time").value = data.startTime;
+                    if (data.currPct) document.getElementById("input-curr-pct").value = data.currPct;
+                    if (data.isExpanded) document.getElementById("prediction-content").style.display = "block";
+                } catch(e) {}
+            }
+            if (localStorage.getItem("blueeyes_table_collapsed") === "true") { isTableCollapsed = true; document.getElementById("table-pane").classList.add("collapsed"); document.getElementById("table-toggle-btn").innerHTML = "◀"; }
+            
+            // 初始化全選按鈕狀態
+            const allChecked = tableData.length > 0 && tableData.every(x => x.selected);
+            const checkAllBtn = document.getElementById('check-all-table');
+            if (checkAllBtn) checkAllBtn.checked = allChecked;
+        }
+
+        /* === 勾選邏輯更新 === */
+        window.toggleTaskSelection = function(taskId, isChecked, event) {
+            if(event) event.stopPropagation(); // 阻止氣泡傳遞導致地圖亂跳
+            playCyberSfx('click');
+            const t = tableData.find(x => x.id === taskId);
+            if (t) {
+                t.selected = isChecked;
+                if (!t.isGroup) {
+                    const n = mapNodes.find(n => n.id === taskId);
+                    if (n) n.selected = isChecked;
+                } else {
+                    const n = mapNodes.find(n => n.id === t.parentId);
+                    if (n) {
+                        const tk = n.tasks.find(tk => tk.id === taskId);
+                        if (tk) tk.selected = isChecked;
+                    }
+                }
+            }
+            
+            // 同步其他 UI 的 Checkbox
+            const cbTbl = document.getElementById(`cb-tbl-${taskId}`);
+            if (cbTbl) cbTbl.checked = isChecked;
+            const cbMap = document.getElementById(`cb-map-${taskId}`);
+            if (cbMap) cbMap.checked = isChecked;
+
+            const allChecked = tableData.every(x => x.selected);
+            const checkAllBtn = document.getElementById('check-all-table');
+            if (checkAllBtn) checkAllBtn.checked = allChecked;
+
+            updatePrediction();
+        };
+
+        window.toggleAllSelection = function(isChecked, event) {
+            if(event) event.stopPropagation();
+            playCyberSfx('click');
+            tableData.forEach(t => {
+                t.selected = isChecked;
+                if (!t.isGroup) {
+                    const n = mapNodes.find(n => n.id === t.id);
+                    if (n) n.selected = isChecked;
+                } else {
+                    const n = mapNodes.find(n => n.id === t.parentId);
+                    if (n) {
+                        const tk = n.tasks.find(tk => tk.id === t.id);
+                        if (tk) tk.selected = isChecked;
+                    }
+                }
+                const cbTbl = document.getElementById(`cb-tbl-${t.id}`);
+                if (cbTbl) cbTbl.checked = isChecked;
+                const cbMap = document.getElementById(`cb-map-${t.id}`);
+                if (cbMap) cbMap.checked = isChecked;
+            });
+            updatePrediction();
+        };
+
+        function formatNumber(num) { return num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0"; }
+        function parseDateTime(str) { try { const parts = str.trim().split(/[\/\s:]/); if (parts.length >= 4) return new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4] || 0); } catch(e) {} return new Date(); }
+        function formatDateTime(date) { if (!date || isNaN(date.getTime())) return "-"; return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`; }
+
+        function updatePrediction() {
+            const targetLv = parseInt(document.getElementById("input-target-lv").value) || 113;
+            const reqExp = expTable[targetLv] || 29381931175; document.getElementById("val-req-exp").innerText = formatNumber(reqExp);
+            const now = new Date(); document.getElementById("val-curr-time").innerText = formatDateTime(now);
+            const startTime = parseDateTime(document.getElementById("input-start-time").value);
+            const currPct = Math.min(100, Math.max(0, parseFloat(document.getElementById("input-curr-pct").value.replace('%', '')) || 0));
+            const totalDoneExp = reqExp * (currPct / 100); const leftExp = Math.max(0, reqExp - totalDoneExp);
+            document.getElementById("val-done-exp").innerText = formatNumber(Math.round(totalDoneExp)); document.getElementById("val-left-exp").innerText = formatNumber(Math.round(leftExp));
+            const elapsedHours = Math.max(0.1, (now - startTime) / (1000 * 60 * 60));
+            const dailyStandardExp = tableData.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0); 
+            const origDays = dailyStandardExp > 0 ? (reqExp / dailyStandardExp) : 1; document.getElementById("val-orig-days").innerText = origDays.toFixed(1) + "天";
+            document.getElementById("val-orig-finish").innerText = formatDateTime(new Date(startTime.getTime() + origDays * 24 * 60 * 60 * 1000));
+            const expPerHour = elapsedHours > 0 ? (totalDoneExp / elapsedHours) : 0;
+            const leftHours = expPerHour > 0 ? (leftExp / expPerHour) : 0; document.getElementById("val-left-days").innerText = (leftHours / 24).toFixed(1) + "天";
+            const predFinishTime = new Date(now.getTime() + leftHours * 60 * 60 * 1000);
+            document.getElementById("val-pred-finish").innerText = formatDateTime(predFinishTime); document.getElementById("val-eff-finish").innerText = formatDateTime(predFinishTime);
+            document.getElementById("val-eff-pct").innerText = (origDays * 24 > 0 ? (expPerHour / (reqExp / (origDays * 24))) * 100 : 100).toFixed(1) + "%";
+            
+            const totalTasks = tableData.length; const completedTasks = tableData.filter(t => t.state === 3);
+            const completedCount = completedTasks.length; const taskPctVal = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
+            document.getElementById("progress-bar").style.width = taskPctVal.toFixed(1) + "%";
+            document.getElementById("progress-text").innerText = `${completedCount} / ${totalTasks} (${taskPctVal.toFixed(0)}%) ▾`;
+            document.getElementById("task-count-text").innerText = `完成任務: ${completedCount} / ${totalTasks}`;
+            document.getElementById("today-exp-hud").innerText = "+" + formatNumber(completedTasks.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0));
+            
+            // 更新上方勾選任務 HUD 統計
+            const selectedTasks = tableData.filter(t => t.selected);
+            const selectedCount = selectedTasks.length;
+            const selectedExp = selectedTasks.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0);
+            const selectedPct = reqExp > 0 ? ((selectedExp / reqExp) * 100).toFixed(3) : "0.000";
+            const statsEl = document.getElementById('selected-task-stats');
+            if (statsEl) statsEl.innerText = `${selectedCount} / ${totalTasks} (約目前等級 ${selectedPct}%)`;
+
+            saveToLocal();
+        }
+
+        window.resetAll = function() {
+            playCyberSfx('click'); if(confirm("⚠️ 戰術重置確認 ⚠️\n確定要重置所有進度嗎？")) { batchChangeState(0); showToast("進度已重置完成"); }
+        };
+        window.completeAll = function() {
+            playCyberSfx('complete'); if(confirm("✅ 全局完成確認 ✅\n將全部任務標記為已完成？")) { batchChangeState(3); showToast("已將所有任務標記完成！"); }
+        };
+        function batchChangeState(newState) {
+            tableData.forEach(t => { t.state = newState; if (!t.isGroup) { const n = mapNodes.find(n => n.id === t.id); if(n) n.state = newState; } else { const n = mapNodes.find(n => n.id === t.parentId); if(n) { const tk = n.tasks.find(tk => tk.id === t.id); if(tk) tk.state = newState; } } });
+            refreshDOMVisuals(); renderTable(); updatePrediction();
+        }
+        
+        function refreshDOMVisuals() {
+            tableData.forEach(t => {
+                const newColor = colors[t.state]; const btn = document.getElementById(`btn-${t.id}`); if(btn) { btn.innerText = `狀態切換：${states[t.state]}`; btn.style.backgroundColor = newColor; }
+                const mapMarker = document.getElementById(t.isGroup ? `dot-${t.id}` : `marker-${t.id}`);
+                if(mapMarker) { if(t.isGroup) { mapMarker.style.backgroundColor = newColor; mapMarker.style.boxShadow = `0 0 6px ${newColor}`; } else { mapMarker.style.color = newColor; mapMarker.style.textShadow = `0 0 2px #fff, 0 0 6px #fff, 0 0 12px ${newColor}, 0 0 20px ${newColor}, 0 0 4px #000`; } }
+                const badge = document.getElementById(`badge-${t.id}`); if(badge) { badge.innerText = states[t.state]; badge.style.backgroundColor = newColor; }
+            });
+            checkOffscreenTasks();
+        }
+
+        let checkOffscreenTicking = false;
+        function checkOffscreenTasks() {
+            if (!checkOffscreenTicking) {
+                window.requestAnimationFrame(() => {
+                    const scrollTop = scrollArea.scrollTop; const scrollBottom = scrollTop + scrollArea.clientHeight; const scrollLeft = scrollArea.scrollLeft; const scrollRight = scrollLeft + scrollArea.clientWidth;
+                    let hasTop = false, hasBottom = false, hasLeft = false, hasRight = false;
+                    mapNodes.forEach(node => {
+                        let isCompleted = node.type === "single" ? (node.state === 3) : node.tasks.every(t => t.state === 3);
+                        if (!isCompleted) { if (node.y + 30 < scrollTop) hasTop = true; if (node.y > scrollBottom) hasBottom = true; if (node.x + 30 < scrollLeft) hasLeft = true; if (node.x > scrollRight) hasRight = true; }
+                    });
+                    document.getElementById("ind-top").classList.toggle("visible", hasTop); document.getElementById("ind-bottom").classList.toggle("visible", hasBottom); document.getElementById("ind-left").classList.toggle("visible", hasLeft); document.getElementById("ind-right").classList.toggle("visible", hasRight);
+                    checkOffscreenTicking = false;
+                });
+                checkOffscreenTicking = true;
+            }
+        }
+        scrollArea.addEventListener("scroll", checkOffscreenTasks, { passive: true }); window.addEventListener("resize", checkOffscreenTasks);
+
+        window.jumpToNearestOffscreen = function(direction) {
+            playCyberSfx('radar'); const scrollTop = scrollArea.scrollTop; const scrollLeft = scrollArea.scrollLeft;
+            const incompleteNodes = mapNodes.filter(node => { return node.type === "single" ? (node.state !== 3) : node.tasks.some(t => t.state !== 3); });
+            let targetNode = null;
+            if (direction === 'top') targetNode = incompleteNodes.filter(n => n.y < scrollTop).sort((a,b) => b.y - a.y)[0];
+            else if (direction === 'bottom') targetNode = incompleteNodes.filter(n => n.y > scrollTop + scrollArea.clientHeight).sort((a,b) => a.y - b.y)[0];
+            else if (direction === 'left') targetNode = incompleteNodes.filter(n => n.x < scrollLeft).sort((a,b) => b.x - a.x)[0];
+            else if (direction === 'right') targetNode = incompleteNodes.filter(n => n.x > scrollLeft + scrollArea.clientWidth).sort((a,b) => a.x - b.x)[0];
+            if (targetNode) focusMapNode(targetNode.id);
+        };
+
+        window.changeState = function(taskId, isGroup, parentId, event) {
+            if(event) event.stopPropagation(); const taskRecord = tableData.find(t => t.id === taskId); if (!taskRecord) return;
+            taskRecord.state = (taskRecord.state + 1) % states.length; const newState = taskRecord.state; const newColor = colors[newState];
+            playCyberSfx(newState === 3 ? 'complete' : 'click');
+            if(!isGroup) { const n = mapNodes.find(n => n.id === taskId); if(n) n.state = newState; } 
+            else { const n = mapNodes.find(n => n.id === parentId); if(n) { const tk = n.tasks.find(t => t.id === taskId); if(tk) tk.state = newState; } }
+            const popupBtn = document.getElementById(`btn-${taskId}`); if(popupBtn) { popupBtn.innerText = `狀態切換：${states[newState]}`; popupBtn.style.backgroundColor = newColor; }
+            const mapMarker = document.getElementById(isGroup ? `dot-${taskId}` : `marker-${taskId}`);
+            if(mapMarker) { if(isGroup) { mapMarker.style.backgroundColor = newColor; mapMarker.style.boxShadow = `0 0 6px ${newColor}`; } else { mapMarker.style.color = newColor; mapMarker.style.textShadow = `0 0 2px #fff, 0 0 6px #fff, 0 0 12px ${newColor}, 0 0 20px ${newColor}, 0 0 4px #000`; } }
+            const badge = document.getElementById(`badge-${taskId}`); if(badge) { badge.innerText = states[newState]; badge.style.backgroundColor = newColor; }
+            updatePrediction(); checkOffscreenTasks(); 
+        };
+
+        /* === 5. 渲染地圖節點與強制排序按鈕 === */
+        function renderMap() {
+            container.innerHTML = "";
+            mapNodes.forEach(node => {
+                let wrapper = document.createElement("div"); wrapper.className = "node-container"; wrapper.id = `node-wrap-${node.id}`; wrapper.style.left = node.x + "px"; wrapper.style.top = node.y + "px";
+                let popupStyle = ""; if (node.x > 800) popupStyle += "left: auto; right: -20px; "; if (node.y > 600) popupStyle += node.type === "single" ? "top: auto; bottom: 50px; " : "top: auto; bottom: 65px; ";
+
+                if (node.type === "single") {
+                    let npcBtnHtml = node.npcCoord ? `<div class="coord-buttons" style="margin-bottom:12px;"><button class="copy-btn" onclick="copyCoord('${node.npcCoord.cmd}', event)">${node.npcCoord.label}</button></div>` : '';
+                    let targetBtnsHtml = node.targetCoords.length > 0 ? `<div class="coord-buttons" style="margin-top:12px;">${node.targetCoords.map(c => `<button class="copy-btn" onclick="copyCoord('${c.cmd}', event)">${c.label}</button>`).join('')}</div>` : '';
+                    
+                    wrapper.innerHTML = `
+                        <div id="marker-${node.id}" class="single-marker" style="color: ${colors[node.state]}; text-shadow: 0 0 2px #fff, 0 0 6px #fff, 0 0 12px ${colors[node.state]}, 0 0 20px ${colors[node.state]}, 0 0 4px #000;">★</div>
+                        <div id="popup-${node.id}" class="popup single-popup" style="${popupStyle}">
+                            <div class="popup-header"><span>⌖ 戰術目標資訊</span><span class="close-btn" onclick="closePopup('${node.id}', event)">✖</span></div>
+                            <div style="padding:16px; display:flex; flex-direction:column; height:100%;">
+                                <div class="info-title">
+                                    <input type="checkbox" class="cyber-checkbox" id="cb-map-${node.id}" ${node.selected ? 'checked' : ''} onchange="toggleTaskSelection('${node.id}', this.checked, event)" style="margin-right:8px;">
+                                    ${node.title}
+                                </div>
+                                <div class="task-exp">EXP 獎勵: +${formatNumber(node.exp)}</div>
+                                ${node.hint ? `<div class="task-hint">${node.hint}</div>` : ''}
+                                <div style="margin-top: auto;">
+                                    ${npcBtnHtml}
+                                    <button id="btn-${node.id}" class="status-btn" style="background-color: ${colors[node.state]}" onclick="changeState('${node.id}', false, null, event)">狀態切換：${states[node.state]}</button>
+                                    ${targetBtnsHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (node.type === "group") {
+                    let dotsHtml = node.tasks.map(t => `<div id="dot-${t.id}" class="mini-dot" style="background-color: ${colors[t.state]}; box-shadow: 0 0 6px ${colors[t.state]};"></div>`).join('');
+                    let tasksHtml = node.tasks.map(task => {
+                        let npcBtnHtml = task.npcCoord ? `<div class="coord-buttons" style="margin-bottom:10px;"><button class="copy-btn" onclick="copyCoord('${task.npcCoord.cmd}', event)">${task.npcCoord.label}</button></div>` : '';
+                        let targetBtnsHtml = task.targetCoords.length > 0 ? `<div class="coord-buttons" style="margin-top:10px;">${task.targetCoords.map(c => `<button class="copy-btn" onclick="copyCoord('${c.cmd}', event)">${c.label}</button>`).join('')}</div>` : '';
+                        return `
+                            <div class="task-card">
+                                <div class="info-title">
+                                    <input type="checkbox" class="cyber-checkbox" id="cb-map-${task.id}" ${task.selected ? 'checked' : ''} onchange="toggleTaskSelection('${task.id}', this.checked, event)" style="margin-right:8px;">
+                                    ${task.title}
+                                </div>
+                                <div class="task-exp">EXP 獎勵: +${formatNumber(task.exp)}</div>
+                                ${task.hint ? `<div class="task-hint">${task.hint}</div>` : ''}
+                                <div style="margin-top: auto;">
+                                    ${npcBtnHtml}
+                                    <button id="btn-${task.id}" class="status-btn" style="background-color: ${colors[task.state]}" onclick="changeState('${task.id}', true, '${node.id}', event)">狀態切換：${states[task.state]}</button>
+                                    ${targetBtnsHtml}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    wrapper.innerHTML = `
+                        <div id="marker-${node.id}" class="group-marker"><span class="group-title">${node.markerLabel || '群組'}</span><div class="mini-dots-container">${dotsHtml}</div></div>
+                        <div id="popup-${node.id}" class="popup group-popup" style="${popupStyle}">
+                            <div class="popup-header"><span>⌖ ${node.title}</span><span class="close-btn" onclick="closePopup('${node.id}', event)">✖</span></div>
+                            <div class="task-grid">${tasksHtml}</div>
+                        </div>
+                    `;
+                }
+                container.appendChild(wrapper);
+
+                document.getElementById(`marker-${node.id}`).addEventListener("click", function(e) {
+                    e.stopPropagation(); playCyberSfx('click'); toggleNodePopup(node.id);
+                });
+            });
+        }
+
+        function toggleNodePopup(nodeId, openOnly = false) {
+            const wrapper = document.getElementById(`node-wrap-${nodeId}`); const popup = document.getElementById(`popup-${nodeId}`); if(!popup) return;
+            if (activePopup && activePopup !== popup) { activePopup.style.display = "none"; activePopup.parentNode.style.zIndex = 1; }
+            if (popup.style.display === "block" && !openOnly) { popup.style.display = "none"; wrapper.style.zIndex = 1; activePopup = null; } 
+            else { popup.style.display = "block"; wrapper.style.zIndex = 120; activePopup = popup; }
+        }
+
+        window.focusMapNode = function(nodeId) {
+            playCyberSfx('radar'); const node = mapNodes.find(n => n.id === nodeId); if (!node) return;
+            scrollArea.scrollTo({ left: Math.max(0, node.x - (scrollArea.clientWidth / 2) + 20), top: Math.max(0, node.y - (scrollArea.clientHeight / 2) + 20), behavior: 'smooth' });
+            toggleNodePopup(node.id, true);
+            const wrapper = document.getElementById(`node-wrap-${node.id}`);
+            if(wrapper) { const oldPing = wrapper.querySelector('.radar-ping'); if(oldPing) oldPing.remove(); const ping = document.createElement('div'); ping.className = 'radar-ping'; wrapper.appendChild(ping); setTimeout(() => ping.remove(), 3400); }
+        };
+
+        window.setFilterState = function(stateVal, el) { playCyberSfx('click'); currentFilter = stateVal; document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active')); el.classList.add('active'); renderTable(); };
+        window.handleFilterChange = function() { searchQuery = document.getElementById('task-search-input').value.trim().toLowerCase(); renderTable(); };
+
+        function renderTable() {
+            let html = "";
+            const filteredTasks = tableData.filter(task => {
+                const matchState = (currentFilter === 'all') || (String(task.state) === currentFilter);
+                const matchQuery = !searchQuery || task.name.toLowerCase().includes(searchQuery) || task.region.toLowerCase().includes(searchQuery) || (task.hint && task.hint.toLowerCase().includes(searchQuery)); 
+                return matchState && matchQuery;
+            });
+
+            for (let i = 0; i < filteredTasks.length; i++) {
+                const task = filteredTasks[i];
+                const targetNodeId = task.isGroup ? task.parentId : task.id;
+                html += `<tr onclick="focusMapNode('${targetNodeId}')" title="點擊定位到地圖位置">`;
+                
+                // 區域合併邏輯
+                if (i === 0 || filteredTasks[i - 1].region !== task.region) {
+                    let rowspan = 1;
+                    for (let j = i + 1; j < filteredTasks.length; j++) {
+                        if (filteredTasks[j].region === task.region) rowspan++;
+                        else break;
+                    }
+                    html += `<td class="region-cell" rowspan="${rowspan}" style="border-left:1px solid rgba(181, 23, 255, 0.25);">${task.region}</td>`;
+                }
+                
+                html += `<td style="text-align: center;" onclick="event.stopPropagation()"><input type="checkbox" class="cyber-checkbox" id="cb-tbl-${task.id}" ${task.selected ? 'checked' : ''} onchange="toggleTaskSelection('${task.id}', this.checked, event)"></td>
+                         <td class="table-task-name">${task.name}</td>
+                         <td style="text-align: center;"><span id="badge-${task.id}" class="status-badge" style="background-color: ${colors[task.state]}" onclick="changeState('${task.id}', ${task.isGroup}, '${task.parentId}', event)">${states[task.state]}</span></td>
+                         <td class="exp-cell">+${formatNumber(task.exp)}</td></tr>`;
+            }
+            tbody.innerHTML = html || `<tr><td colspan="5" style="padding:25px; color:var(--text-muted);">無符合條件的任務資料</td></tr>`;
+        }
+
+        window.closePopup = function(nodeId, event) { if(event) event.stopPropagation(); playCyberSfx('click'); const popup = document.getElementById(`popup-${nodeId}`); if(popup) { popup.style.display = "none"; popup.parentNode.style.zIndex = 1; } activePopup = null; };
+        container.addEventListener("click", function() { if (activePopup) { activePopup.style.display = "none"; activePopup.parentNode.style.zIndex = 1; activePopup = null; } });
+
+        window.copyCoord = function(text, event) {
+            if(event) event.stopPropagation(); playCyberSfx('click');
+            if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(() => { showToast(`已複製座標：${text}`); }).catch(() => fallbackCopy(text)); } else { fallbackCopy(text); }
+        };
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea"); textArea.value = text; textArea.style.position = "fixed"; textArea.style.left = "-9999px"; document.body.appendChild(textArea); textArea.focus(); textArea.select();
+            try { document.execCommand('copy'); showToast(`已複製座標：${text}`); } catch (err) {} document.body.removeChild(textArea);
+        }
+
+        container.addEventListener("contextmenu", function(e) { e.preventDefault(); });
+
+        document.onkeydown = function (e) {
+            if (e.keyCode == 123) { return false; } 
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } 
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } 
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } 
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } 
+       }
+
+        // === 背景動態電競粒子網路 ===
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        const pColors = ['#ff1e56', '#b517ff', '#00ff87'];
+        function createParticles() { 
+            particles = []; 
+            for (let i = 0; i < 38; i++) { 
+                particles.push({ 
+                    x: Math.random() * canvas.width, y: Math.random() * canvas.height, 
+                    vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6, 
+                    r: Math.random() * 2 + 1, c: pColors[i % pColors.length] 
+                }); 
+            } 
+        }
+        
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = p.c; ctx.shadowBlur = 8; ctx.shadowColor = p.c; ctx.fill();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        
+        createParticles();
+        animateParticles();
+
+        // 啟動應用程式
+        initializeApp();
+    </script>
+<script src="nav.js"></script>
+</body>
+</html>

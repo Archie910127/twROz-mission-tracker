@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RO 裝備升級成本計算器</title>
+    <style>
+        :root {
+            --bg-color: #0d0e15;
+            --panel-bg: #151821;
+            --panel-bg-alt: #10131b;
+            --tech-green: #00ffcc;
+            --cyber-purple: #b026ff;
+            --cyber-red: #ff2a4b;
+            --cyber-gold: #ffd700;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+        }
+
+        /* --- 電競風格客製化滾動軸 --- */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track {
+            background: #090a0f;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 204, 0.08);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--tech-green), var(--cyber-purple));
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, var(--tech-green), var(--cyber-red));
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            margin: 0;
+            padding: 14px 18px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            background-image:
+                radial-gradient(circle at 12% 20%, rgba(0, 255, 204, 0.06), transparent 28%),
+                radial-gradient(circle at 88% 75%, rgba(176, 38, 255, 0.07), transparent 30%);
+        }
+
+        @media (min-width: 1100px) {
+            body {
+                height: 100vh;
+                overflow: hidden;
+            }
+        }
+
+        /* --- 頂部標題列 --- */
+        .app-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            flex-shrink: 0;
+        }
+
+        .title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 {
+            font-size: 1.45em;
+            color: var(--tech-green);
+            text-shadow: 0 0 12px rgba(0, 255, 204, 0.35);
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            font-size: 0.72em;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid rgba(0, 255, 204, 0.35);
+            color: var(--tech-green);
+            letter-spacing: 0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .cyber-btn {
+            background: rgba(16, 19, 27, 0.9);
+            color: var(--text-main);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+
+        .cyber-btn:hover {
+            border-color: var(--tech-green);
+            color: var(--tech-green);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .cyber-btn.danger:hover {
+            border-color: var(--cyber-red);
+            color: var(--cyber-red);
+            box-shadow: 0 0 12px rgba(255, 42, 75, 0.25);
+        }
+
+        .cyber-btn.primary {
+            background: linear-gradient(135deg, rgba(0, 255, 204, 0.15), rgba(176, 38, 255, 0.18));
+            border-color: var(--tech-green);
+            color: var(--tech-green);
+            font-weight: 600;
+        }
+
+        /* --- 主容器雙欄架構 --- */
+        .main-workspace {
+            display: flex;
+            gap: 14px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        @media (max-width: 1099px) {
+            .main-workspace {
+                flex-direction: column;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 10px;
+            padding: 14px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.55), inset 0 0 12px rgba(0, 255, 204, 0.04);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, var(--tech-green), var(--cyber-purple), var(--cyber-red));
+            z-index: 2;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .panel-title {
+            color: var(--tech-green);
+            font-size: 1.02em;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* --- 左側：材料單價輸入面板 --- */
+        .sidebar-panel {
+            width: 365px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-panel.collapsed {
+            display: none;
+        }
+
+        @media (max-width: 1099px) {
+            .sidebar-panel {
+                width: 100%;
+            }
+        }
+
+        .input-hint-banner {
+            font-size: 0.78em;
+            color: var(--text-muted);
+            background: rgba(176, 38, 255, 0.08);
+            border: 1px dashed rgba(176, 38, 255, 0.35);
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            flex-shrink: 0;
+        }
+
+        .input-hint-banner code {
+            color: var(--tech-green);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        .materials-scroll {
+            overflow-y: auto;
+            padding-right: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .mat-group-label {
+            font-size: 0.76em;
+            color: var(--cyber-purple);
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 4px 0 2px 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mat-group-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(176, 38, 255, 0.4), transparent);
+        }
+
+        .materials-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+        }
+
+        @media (max-width: 1099px) and (min-width: 600px) {
+            .materials-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .price-card {
+            background: rgba(9, 10, 15, 0.75);
+            border: 1px solid var(--border-subtle);
+            border-left: 3px solid rgba(0, 255, 204, 0.45);
+            border-radius: 6px;
+            padding: 7px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .price-card.cat-jelly { border-left-color: var(--cyber-red); }
+        .price-card.cat-enchant { border-left-color: var(--cyber-purple); }
+
+        .price-card:focus-within {
+            border-color: var(--tech-green);
+            background: rgba(0, 255, 204, 0.04);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.12);
+        }
+
+        .price-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .price-name {
+            font-size: 0.86em;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        /* 可點選複製的材料名稱 */
+        .copy-name {
+            cursor: pointer;
+            transition: color 0.15s, text-shadow 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-bottom: 1px dashed rgba(0, 255, 204, 0.28);
+            padding-bottom: 1px;
+        }
+
+        .copy-name::after {
+            content: '📋';
+            font-size: 0.78em;
+            opacity: 0.45;
+            transition: opacity 0.15s, transform 0.15s;
+        }
+
+        .copy-name:hover {
+            color: var(--tech-green);
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.35);
+            border-bottom-color: var(--tech-green);
+        }
+
+        .copy-name:hover::after {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .copy-name:active {
+            transform: scale(0.97);
+        }
+
+        .stage-tag {
+            font-size: 0.72em;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.07);
+            color: var(--text-muted);
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .price-human {
+            font-size: 0.74em;
+            color: var(--tech-green);
+            opacity: 0.8;
+            margin-top: 2px;
+            font-family: 'Consolas', monospace;
+        }
+
+        .price-input-wrap {
+            display: flex;
+            align-items: center;
+            background: #07080c;
+            border: 1px solid rgba(176, 38, 255, 0.35);
+            border-radius: 5px;
+            padding: 3px 7px;
+            width: 122px;
+            flex-shrink: 0;
+        }
+
+        .price-input-wrap input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--cyber-gold);
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.95em;
+            font-weight: 700;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .price-input-wrap .unit {
+            font-size: 0.75em;
+            color: var(--text-muted);
+            margin-left: 4px;
+            user-select: none;
+        }
+
+        /* --- 右側：核心計算區 --- */
+        .workspace-panel {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .route-box {
+            background: rgba(9, 10, 15, 0.65);
+            border: 1px solid rgba(0, 255, 204, 0.15);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .route-top-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .category-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .cat-tab {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .cat-tab:hover {
+            color: var(--text-main);
+            border-color: rgba(0, 255, 204, 0.4);
+        }
+
+        .cat-tab.active {
+            background: linear-gradient(135deg, rgba(0, 255, 204, 0.2), rgba(176, 38, 255, 0.22));
+            border-color: var(--tech-green);
+            color: var(--tech-green);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.2);
+        }
+
+        .quick-stage-presets {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8em;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            background: transparent;
+            border: 1px solid rgba(176, 38, 255, 0.4);
+            color: #d8b4fe;
+            padding: 4px 9px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.92em;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .preset-btn:hover {
+            background: rgba(176, 38, 255, 0.2);
+            border-color: var(--cyber-purple);
+            color: #fff;
+        }
+
+        .subroute-pills {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        @media (max-width: 820px) {
+            .subroute-pills {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .route-pill {
+            background: #0d1018;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 7px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-family: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .route-pill-title {
+            font-size: 0.88em;
+            font-weight: 700;
+            color: inherit;
+        }
+
+        .route-pill-sub {
+            font-size: 0.72em;
+            opacity: 0.72;
+        }
+
+        .route-pill:hover {
+            border-color: var(--cyber-purple);
+            color: var(--text-main);
+        }
+
+        .route-pill.active {
+            background: rgba(176, 38, 255, 0.16);
+            border-color: var(--cyber-purple);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(176, 38, 255, 0.28);
+        }
+
+        /* --- KPI 總覽條 --- */
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .kpi-strip { grid-template-columns: 1fr; }
+        }
+
+        .kpi-card {
+            background: linear-gradient(145deg, rgba(16, 19, 27, 0.95), rgba(9, 10, 15, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 9px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .kpi-card.highlight {
+            border-color: rgba(255, 42, 75, 0.45);
+            box-shadow: inset 0 0 15px rgba(255, 42, 75, 0.08);
+        }
+
+        .kpi-label {
+            font-size: 0.8em;
+            color: var(--text-muted);
+        }
+
+        .kpi-sub {
+            font-size: 0.76em;
+            color: var(--tech-green);
+            margin-top: 2px;
+        }
+
+        .kpi-value {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 1.35em;
+            color: var(--cyber-red);
+            text-shadow: 0 0 10px rgba(255, 42, 75, 0.35);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .kpi-value.gold {
+            color: var(--cyber-gold);
+            font-size: 1.1em;
+            text-shadow: none;
+        }
+
+        .kpi-value.purple {
+            color: #d8b4fe;
+            font-size: 1.1em;
+            text-shadow: none;
+        }
+
+        /* --- 內容分割區 (左表右圖) --- */
+        .split-layout {
+            display: flex;
+            gap: 16px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        @media (max-width: 900px) {
+            .split-layout { flex-direction: column; }
+        }
+
+        .table-container {
+            flex: 1.65;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .view-tabs {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            margin-bottom: 8px;
+            flex-shrink: 0;
+            gap: 8px;
+        }
+
+        .view-tab-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .view-tab {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            padding: 7px 14px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .view-tab:hover { color: var(--text-main); }
+
+        .view-tab.active {
+            color: var(--tech-green);
+            border-bottom-color: var(--tech-green);
+            background: rgba(0, 255, 204, 0.06);
+        }
+
+        .table-scroll {
+            flex: 1;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.87em;
+        }
+
+        th, td {
+            padding: 9px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            vertical-align: top;
+            line-height: 1.45;
+        }
+
+        th {
+            background: #101923;
+            color: var(--tech-green);
+            font-weight: 700;
+            border-bottom: 2px solid var(--tech-green);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+        tbody tr { transition: background 0.15s, opacity 0.2s; }
+        tbody tr:hover td { background: rgba(176, 38, 255, 0.12); }
+
+        tbody tr.stage-excluded {
+            opacity: 0.35;
+        }
+        tbody tr.stage-excluded .cost-number,
+        tbody tr.stage-excluded .total-cost-number {
+            text-decoration: line-through;
+        }
+
+        .col-mat { border-right: 1px dashed rgba(255, 255, 255, 0.1); }
+
+        .stage-cell {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .cyber-check {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid var(--tech-green);
+            border-radius: 3px;
+            background: #090a0f;
+            cursor: pointer;
+            position: relative;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .cyber-check.mini {
+            width: 14px;
+            height: 14px;
+            margin-top: 3px;
+            border-color: var(--cyber-purple);
+        }
+
+        .cyber-check:checked {
+            background: var(--tech-green);
+        }
+
+        .cyber-check.mini:checked {
+            background: var(--cyber-purple);
+        }
+
+        .cyber-check:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -2px;
+            left: 2px;
+            color: #090a0f;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .cyber-check.mini:checked::after {
+            top: -3px;
+            left: 1.5px;
+            font-size: 11px;
+            color: #fff;
+        }
+
+        /* 5階附魔洞數列表 */
+        .enchant-slot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .enchant-slot-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            background: rgba(176, 38, 255, 0.06);
+            border: 1px solid rgba(176, 38, 255, 0.18);
+            border-radius: 5px;
+            padding: 4px 8px;
+            transition: opacity 0.2s;
+        }
+
+        .enchant-slot-row.slot-off {
+            opacity: 0.4;
+            text-decoration: line-through;
+        }
+
+        .enchant-slot-label {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .slot-badge {
+            display: inline-block;
+            background: rgba(176, 38, 255, 0.24);
+            color: #e9d5ff;
+            border: 1px solid rgba(176, 38, 255, 0.45);
+            font-weight: 700;
+            font-size: 0.85em;
+            padding: 0 5px;
+            border-radius: 3px;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+
+        .slot-cost {
+            font-family: 'Consolas', monospace;
+            color: var(--cyber-gold);
+            font-size: 0.88em;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .sub-cost {
+            display: block;
+            font-size: 0.78em;
+            color: var(--text-muted);
+            font-family: 'Consolas', monospace;
+            margin-top: 1px;
+        }
+
+        .cost-number {
+            color: var(--cyber-gold);
+            font-weight: 700;
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .total-cost-number {
+            color: var(--cyber-red);
+            font-weight: 700;
+            font-size: 1.05em;
+            font-family: 'Consolas', 'Courier New', monospace;
+            text-shadow: 0 0 6px rgba(255, 42, 75, 0.25);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .share-bar-bg {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .share-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--tech-green), var(--cyber-gold));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .share-pct {
+            font-size: 0.74em;
+            color: var(--text-muted);
+            margin-top: 2px;
+            display: block;
+        }
+
+        tfoot td {
+            background: rgba(0, 255, 204, 0.06);
+            border-top: 2px solid rgba(0, 255, 204, 0.4);
+            font-weight: 700;
+            padding: 10px;
+        }
+
+        /* 採購清單庫存輸入框 */
+        .stock-input {
+            width: 68px;
+            background: #090a0f;
+            border: 1px solid rgba(0, 255, 204, 0.35);
+            color: var(--tech-green);
+            padding: 3px 6px;
+            border-radius: 4px;
+            text-align: right;
+            font-family: 'Consolas', monospace;
+            font-weight: 700;
+            outline: none;
+        }
+        .stock-input:focus {
+            border-color: var(--tech-green);
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.3);
+        }
+
+        /* --- 右側圖片預覽區 --- */
+        .image-section {
+            flex: 0.85;
+            min-width: 220px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(9, 10, 15, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .image-title-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.82em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .image-section img {
+            max-width: 100%;
+            max-height: 100%;
+            height: auto;
+            border: 1.5px solid rgba(0, 255, 204, 0.35);
+            border-radius: 6px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+            transition: border-color 0.25s, transform 0.2s;
+            cursor: zoom-in;
+        }
+
+        .image-section img:hover {
+            border-color: var(--tech-green);
+            transform: scale(1.015);
+        }
+
+        /* --- Modal 燈箱 --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(9, 10, 15, 0.94);
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+
+        .modal img {
+            max-width: 92vw;
+            max-height: 90vh;
+            border: 2px solid var(--tech-green);
+            box-shadow: 0 0 40px rgba(0, 255, 204, 0.45);
+            border-radius: 8px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 28px;
+            color: #fff;
+            font-size: 38px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .modal-close:hover { color: var(--cyber-red); }
+
+        /* --- 右上方 Toast 通知 --- */
+        .toast {
+            position: fixed;
+            top: 18px;
+            right: 22px;
+            background: rgba(16, 25, 35, 0.96);
+            color: var(--tech-green);
+            border: 1px solid var(--tech-green);
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 18px rgba(0, 255, 204, 0.28);
+            opacity: 0;
+            transform: translateY(-16px);
+            pointer-events: none;
+            transition: all 0.25s ease;
+            z-index: 10000;
+            backdrop-filter: blur(6px);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+<header class="app-header">
+<div class="title-wrap">
+    <div id="be-nav" data-active="equip"></div>
+    <span class="status-badge">AUTO-SAVE ON</span>
+</div>
+    <div class="header-actions">
+        <button class="cyber-btn" id="toggleSidebarBtn" onclick="toggleSidebar()">◀ 收合價格欄</button>
+        <button class="cyber-btn primary" onclick="copySummary()">📋 複製費用與材料清單</button>
+        <button class="cyber-btn danger" onclick="resetPrices()">↺ 恢復預設價格</button>
+    </div>
+</header>
+
+<div class="main-workspace">
+    <!-- 左側：材料單價輸入區 -->
+    <aside class="panel sidebar-panel" id="priceSidebar">
+        <div class="panel-header">
+            <h2 class="panel-title">🛠️ 市場材料單價 (Zeny)</h2>
+        </div>
+
+        <div class="input-hint-banner">
+            💡 點擊<strong>材料名稱</strong>可直接複製查詢；輸入支援 <code>170w</code> (萬)、<code>50k</code> (千)、<code>1.5m</code> (百萬)。
+        </div>
+
+        <div class="materials-scroll">
+            <div class="mat-group-label">底材與果凍石</div>
+            <div class="materials-list">
+                <div class="price-card">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="征伐底材" title="點擊複製材料名稱">征伐底材</span>
+                            <span class="stage-tag">1階</span>
+                        </span>
+                        <span class="price-human" id="hint_price_base"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_base" data-key="price_base">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card cat-jelly">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="果凍石" title="點擊複製材料名稱">果凍石 (通用)</span>
+                            <span class="stage-tag">1~4階</span>
+                        </span>
+                        <span class="price-human" id="hint_price_jelly"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_jelly" data-key="price_jelly">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mat-group-label">結晶與魔力結晶體</div>
+            <div class="materials-list">
+                <div class="price-card">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="微微發光的結晶體" title="點擊複製材料名稱">微微發光的結晶體</span>
+                            <span class="stage-tag">1階 x50</span>
+                        </span>
+                        <span class="price-human" id="hint_price_slight"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_slight" data-key="price_slight">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="藍光結晶體" title="點擊複製材料名稱">藍光結晶體</span>
+                            <span class="stage-tag">2階 x50</span>
+                        </span>
+                        <span class="price-human" id="hint_price_blue"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_blue" data-key="price_blue">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="紅色魔力結晶體" title="點擊複製材料名稱">紅色魔力結晶體</span>
+                            <span class="stage-tag">3階 x50</span>
+                        </span>
+                        <span class="price-human" id="hint_price_red_magic"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_red_magic" data-key="price_red_magic">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="紫色魔力結晶體" title="點擊複製材料名稱">紫色魔力結晶體</span>
+                            <span class="stage-tag">鎧50 / 其他20</span>
+                        </span>
+                        <span class="price-human" id="hint_price_purple_magic"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_purple_magic" data-key="price_purple_magic">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mat-group-label">轉生與 5 階附魔材料</div>
+            <div class="materials-list">
+                <div class="price-card cat-enchant">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="亡者的寒氣" title="點擊複製材料名稱">亡者的寒氣</span>
+                            <span class="stage-tag">鎧3 / 其他1</span>
+                        </span>
+                        <span class="price-human" id="hint_price_breath"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_breath" data-key="price_breath">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card cat-enchant">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="研究員紀錄匯集" title="點擊複製材料名稱">研究員紀錄匯集</span>
+                            <span class="stage-tag">4洞20+3洞20</span>
+                        </span>
+                        <span class="price-human" id="hint_price_report"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_report" data-key="price_report">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card cat-enchant">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="高級犯人的手鍊" title="點擊複製材料名稱">高級犯人的手鍊</span>
+                            <span class="stage-tag">5+5+10</span>
+                        </span>
+                        <span class="price-human" id="hint_price_bracelet"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_bracelet" data-key="price_bracelet">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+                <div class="price-card cat-enchant">
+                    <div class="price-info">
+                        <span class="price-name">
+                            <span class="copy-name" data-copy="勇士的意志" title="點擊複製材料名稱">勇士的意志</span>
+                            <span class="stage-tag">2洞 x1</span>
+                        </span>
+                        <span class="price-human" id="hint_price_will"></span>
+                    </div>
+                    <div class="price-input-wrap">
+                        <input type="text" inputmode="decimal" class="price-input" id="price_will" data-key="price_will">
+                        <span class="unit">Z</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右側：路線選擇、KPI 與計算表格 -->
+    <main class="panel workspace-panel">
+        <!-- 路線選擇 -->
+        <div class="route-box">
+            <div class="route-top-row">
+                <div class="category-tabs" id="categoryTabs">
+                    <button class="cat-tab active" data-cat="armor" onclick="selectCategory('armor')">👕 鎧甲路線</button>
+                    <button class="cat-tab" data-cat="garment" onclick="selectCategory('garment')">🧥 披肩路線</button>
+                    <button class="cat-tab" data-cat="shoes" onclick="selectCategory('shoes')">👢 鞋子路線</button>
+                    <button class="cat-tab" data-cat="acc" onclick="selectCategory('acc')">💍 飾品路線</button>
+                </div>
+                <div class="quick-stage-presets">
+                    <span style="color:var(--text-muted);">快速區間：</span>
+                    <button class="preset-btn" onclick="setStagePreset([true,true,true,true,true])">全階段 (1~5)</button>
+                    <button class="preset-btn" onclick="setStagePreset([true,true,true,true,false])">不含附魔 (1~4)</button>
+                    <button class="preset-btn" onclick="setStagePreset([false,true,true,true,true])">已有1階 (2~5)</button>
+                </div>
+            </div>
+            <div class="subroute-pills" id="subroutePills"></div>
+        </div>
+
+        <!-- KPI 總覽 -->
+        <div class="kpi-strip">
+            <div class="kpi-card highlight">
+                <div>
+                    <div class="kpi-label">🎯 所選階段總花費 (<span id="kpiRouteName">-</span>)</div>
+                    <div class="kpi-sub" id="kpiTotalHuman">約 0 萬 Zeny</div>
+                </div>
+                <div class="kpi-value" id="kpiTotalCost">$ 0</div>
+            </div>
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-label">🛡️ 1~4階升級花費</div>
+                    <div class="kpi-sub">征伐底材 + 結晶 + 果凍 + 寒氣</div>
+                </div>
+                <div class="kpi-value gold" id="kpiEquipCost">$ 0</div>
+            </div>
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-label">✨ 第5階轉生附魔</div>
+                    <div class="kpi-sub">4洞 ➔ 3洞 ➔ 2洞(職業魂)</div>
+                </div>
+                <div class="kpi-value purple" id="kpiEnchantCost">$ 0</div>
+            </div>
+        </div>
+
+        <!-- 表格與圖片並排 -->
+        <div class="split-layout">
+            <div class="table-container">
+                <div class="view-tabs">
+                    <div class="view-tab-group">
+                        <button class="view-tab active" id="tabBtnStages" onclick="switchView('stages')">📊 分階試算表</button>
+                        <button class="view-tab" id="tabBtnSummary" onclick="switchView('summary')">🎒 採購材料總清單 (扣抵庫存)</button>
+                    </div>
+                    <span style="font-size:0.78em; color:var(--text-muted);" id="selectedCountText">已選 5 / 5 階段</span>
+                </div>
+
+                <!-- 視圖 1：分階試算表 -->
+                <div class="table-scroll" id="viewStages">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 19%;">升級階段</th>
+                                <th class="col-mat" style="width: 14%;">前置裝備</th>
+                                <th class="col-mat" style="width: 15%;">結晶 / 魔力</th>
+                                <th class="col-mat" style="width: 15%;">果凍石需求</th>
+                                <th class="col-mat" style="width: 14%;">附加材料</th>
+                                <th style="width: 12%;">單階花費</th>
+                                <th style="width: 11%;">累計成本</th>
+                            </tr>
+                        </thead>
+                        <tbody id="calc_tbody"></tbody>
+                        <tfoot id="calc_tfoot"></tfoot>
+                    </table>
+                </div>
+
+                <!-- 視圖 2：採購材料總清單 -->
+                <div class="table-scroll" id="viewSummary" style="display:none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 28%;">材料名稱 (點擊複製)</th>
+                                <th style="width: 12%;">總需求</th>
+                                <th style="width: 14%;">倉庫庫存</th>
+                                <th style="width: 12%;">尚需購買</th>
+                                <th style="width: 15%;">目前單價</th>
+                                <th style="width: 19%;">尚需花費</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary_tbody"></tbody>
+                        <tfoot id="summary_tfoot"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 裝備圖鑑 -->
+            <div class="image-section">
+                <div class="image-title-bar">
+                    <span id="imgCategoryLabel">📖 鎧甲路線圖鑑</span>
+                    <span style="color:var(--tech-green);">🔍 點擊放大</span>
+                </div>
+                <img id="equip_img" src="images/armor.jpg" alt="裝備圖" title="點擊放大" onclick="openModal(this.src)" onerror="handleImgError(this)">
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- 圖片放大燈箱 -->
+<div id="imageModal" class="modal" onclick="closeModal()">
+    <span class="modal-close">&times;</span>
+    <img id="modalImg" src="">
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+    const STORAGE_KEY = "ro_equip_calc_v4";
+
+    const defaultPrices = {
+        price_base: 250000,
+        price_jelly: 1700000,
+        price_slight: 50000,
+        price_blue: 24999,
+        price_red_magic: 88999,
+        price_purple_magic: 488,
+        price_breath: 5000000,
+        price_will: 22000,
+        price_report: 190000,
+        price_bracelet: 13499
+    };
+
+    const jellyNames = {
+        red: "紅蓮的果凍石",
+        chaos: "混沌果凍石",
+        wind: "清風的果凍石",
+        holy: "神聖的果凍石",
+        dusk: "黃昏果凍石"
+    };
+
+    // 第 5 階附魔需求（順序：4洞 -> 3洞 -> 2洞(職業魂)）
+    const enchantSlotsDef = [
+        {
+            id: "slot4",
+            label: "4洞",
+            items: [
+                { key: "price_report", label: "研究員紀錄匯集", qty: 20 },
+                { key: "price_bracelet", label: "高級犯人的手鍊", qty: 5 }
+            ]
+        },
+        {
+            id: "slot3",
+            label: "3洞",
+            items: [
+                { key: "price_report", label: "研究員紀錄匯集", qty: 20 },
+                { key: "price_bracelet", label: "高級犯人的手鍊", qty: 5 }
+            ]
+        },
+        {
+            id: "slot2",
+            label: "2洞(職業魂)",
+            items: [
+                { key: "price_will", label: "勇士的意志", qty: 1 },
+                { key: "price_bracelet", label: "高級犯人的手鍊", qty: 10 }
+            ]
+        }
+    ];
+
+    const categories = {
+        armor: {
+            label: "鎧甲路線圖鑑",
+            img: "images/armor.jpg",
+            routes: [
+                { id: "armor_armor", label: "征服者轉生鎧甲", sub: "征伐鎧甲 ➔ 遠征鎧甲 ➔ 殲滅鎧甲" },
+                { id: "armor_coat", label: "征服者轉生風衣", sub: "征伐鎧甲 ➔ 遠征鎧甲 ➔ 殲滅風衣" },
+                { id: "armor_robe", label: "征服者轉生外袍", sub: "征伐外袍 ➔ 遠征外袍 ➔ 殲滅外袍" },
+                { id: "armor_uniform", label: "征服者轉生制服", sub: "征伐外袍 ➔ 遠征外袍 ➔ 殲滅制服" }
+            ]
+        },
+        garment: {
+            label: "披肩路線圖鑑",
+            img: "images/garment.jpg",
+            routes: [
+                { id: "garment_manteau", label: "征服者轉生斗篷", sub: "征伐肩飾 ➔ 遠征斗篷 ➔ 殲滅斗篷" },
+                { id: "garment_scout", label: "征服者轉生偵查斗篷", sub: "征伐肩飾 ➔ 遠征斗篷 ➔ 殲滅偵查" },
+                { id: "garment_scarf", label: "征服者轉生圍巾", sub: "征伐肩飾 ➔ 遠征圍巾 ➔ 殲滅圍巾" },
+                { id: "garment_cape", label: "征服者轉生披肩", sub: "征伐肩飾 ➔ 遠征圍巾 ➔ 殲滅披肩" }
+            ]
+        },
+        shoes: {
+            label: "鞋子路線圖鑑",
+            img: "images/shoes.jpg",
+            routes: [
+                { id: "shoes_heavy", label: "征服者轉生重靴", sub: "征伐軍靴 ➔ 遠征長靴 ➔ 殲滅重靴" },
+                { id: "shoes_boots", label: "征服者轉生長靴", sub: "征伐軍靴 ➔ 遠征長靴 ➔ 殲滅長靴" },
+                { id: "shoes_shoes", label: "征服者轉生鞋子", sub: "征伐軍靴 ➔ 遠征鞋子 ➔ 殲滅鞋子" },
+                { id: "shoes_magic", label: "征服者轉生魔法鞋子", sub: "征伐軍靴 ➔ 遠征鞋子 ➔ 殲滅魔法鞋" }
+            ]
+        },
+        acc: {
+            label: "飾品路線圖鑑",
+            img: "images/accessory.jpg",
+            routes: [
+                { id: "acc_ring", label: "征服者轉生戒指", sub: "征伐戒指 ➔ 遠征戒指 ➔ 殲滅戒指" },
+                { id: "acc_glove", label: "征服者轉生手套", sub: "征伐戒指 ➔ 遠征戒指 ➔ 殲滅手套" },
+                { id: "acc_magic_ring", label: "征服者轉生魔法戒指", sub: "征伐戒指 ➔ 遠征魔戒 ➔ 殲滅魔戒" },
+                { id: "acc_necklace", label: "征服者轉生項鍊", sub: "征伐戒指 ➔ 遠征魔戒 ➔ 殲滅項鍊" }
+            ]
+        }
+    };
+
+    const pathsData = {
+        "armor_armor":   { cat: "armor", n: ["遠征隊鎧甲", "殲滅隊鎧甲", "征服者鎧甲", "征服者轉生鎧甲"], bg: ["征伐隊鎧甲", "遠征隊鎧甲", "殲滅隊鎧甲", "征服者鎧甲"], j: [ [{k:"red", q:2}], [{k:"red", q:4}], [{k:"red", q:6}], [{k:"red", q:6}] ] },
+        "armor_coat":    { cat: "armor", n: ["遠征隊鎧甲", "殲滅隊風衣", "征服者風衣", "征服者轉生風衣"], bg: ["征伐隊鎧甲", "遠征隊鎧甲", "殲滅隊風衣", "征服者風衣"], j: [ [{k:"red", q:2}], [{k:"red", q:2}, {k:"chaos", q:2}], [{k:"red", q:3}, {k:"chaos", q:3}], [{k:"red", q:3}, {k:"chaos", q:3}] ] },
+        "armor_robe":    { cat: "armor", n: ["遠征隊外袍", "殲滅隊外袍", "征服者外袍", "征服者轉生外袍"], bg: ["征伐隊外袍", "遠征隊外袍", "殲滅隊外袍", "征服者外袍"], j: [ [{k:"wind", q:2}], [{k:"wind", q:4}], [{k:"wind", q:6}], [{k:"wind", q:6}] ] },
+        "armor_uniform": { cat: "armor", n: ["遠征隊外袍", "殲滅隊制服", "征服者制服", "征服者轉生制服"], bg: ["征伐隊外袍", "遠征隊外袍", "殲滅隊制服", "征服者制服"], j: [ [{k:"wind", q:2}], [{k:"wind", q:2}, {k:"holy", q:2}], [{k:"wind", q:3}, {k:"holy", q:3}], [{k:"wind", q:3}, {k:"holy", q:3}] ] },
+
+        "garment_manteau": { cat: "garment", n: ["遠征隊斗篷", "殲滅隊斗篷", "征服者斗篷", "征服者轉生斗篷"], bg: ["征伐隊肩飾", "遠征隊斗篷", "殲滅隊斗篷", "征服者斗篷"], j: [ [{k:"chaos", q:1}], [{k:"chaos", q:4}], [{k:"chaos", q:6}], [{k:"chaos", q:6}] ] },
+        "garment_scout":   { cat: "garment", n: ["遠征隊斗篷", "殲滅隊偵查斗篷", "征服者偵查斗篷", "征服者轉生偵查斗篷"], bg: ["征伐隊肩飾", "遠征隊斗篷", "殲滅隊偵查斗篷", "征服者偵查斗篷"], j: [ [{k:"chaos", q:1}], [{k:"red", q:2}, {k:"chaos", q:2}], [{k:"red", q:3}, {k:"chaos", q:3}], [{k:"red", q:3}, {k:"chaos", q:3}] ] },
+        "garment_scarf":   { cat: "garment", n: ["遠征隊圍巾", "殲滅隊圍巾", "征服者圍巾", "征服者轉生圍巾"], bg: ["征伐隊肩飾", "遠征隊圍巾", "殲滅隊圍巾", "征服者圍巾"], j: [ [{k:"holy", q:1}], [{k:"holy", q:2}, {k:"wind", q:2}], [{k:"holy", q:3}, {k:"wind", q:3}], [{k:"holy", q:3}, {k:"wind", q:3}] ] },
+        "garment_cape":    { cat: "garment", n: ["遠征隊圍巾", "殲滅隊披肩", "征服者披肩", "征服者轉生披肩"], bg: ["征伐隊肩飾", "遠征隊圍巾", "殲滅隊披肩", "征服者披肩"], j: [ [{k:"holy", q:1}], [{k:"holy", q:4}], [{k:"holy", q:6}], [{k:"holy", q:6}] ] },
+
+        "shoes_heavy": { cat: "shoes", n: ["遠征隊長靴", "殲滅隊重靴", "征服者重靴", "征服者轉生重靴"], bg: ["征伐隊軍靴", "遠征隊長靴", "殲滅隊重靴", "征服者重靴"], j: [ [{k:"red", q:1}, {k:"chaos", q:1}], [{k:"red", q:4}], [{k:"red", q:6}], [{k:"red", q:6}] ] },
+        "shoes_boots": { cat: "shoes", n: ["遠征隊長靴", "殲滅隊長靴", "征服者長靴", "征服者轉生長靴"], bg: ["征伐隊軍靴", "遠征隊長靴", "殲滅隊長靴", "征服者長靴"], j: [ [{k:"red", q:1}, {k:"chaos", q:1}], [{k:"chaos", q:4}], [{k:"chaos", q:6}], [{k:"chaos", q:6}] ] },
+        "shoes_shoes": { cat: "shoes", n: ["遠征隊鞋子", "殲滅隊鞋子", "征服者鞋子", "征服者轉生鞋子"], bg: ["征伐隊軍靴", "遠征隊鞋子", "殲滅隊鞋子", "征服者鞋子"], j: [ [{k:"wind", q:1}, {k:"holy", q:1}], [{k:"wind", q:4}], [{k:"wind", q:6}], [{k:"wind", q:6}] ] },
+        "shoes_magic": { cat: "shoes", n: ["遠征隊鞋子", "殲滅隊魔法鞋子", "征服者魔法鞋子", "征服者轉生魔法鞋子"], bg: ["征伐隊軍靴", "遠征隊鞋子", "殲滅隊魔法鞋子", "征服者魔法鞋子"], j: [ [{k:"wind", q:1}, {k:"holy", q:1}], [{k:"holy", q:4}], [{k:"holy", q:6}], [{k:"holy", q:6}] ] },
+
+        "acc_ring":       { cat: "acc", n: ["遠征隊戒指", "殲滅隊戒指", "征服者戒指", "征服者轉生戒指"], bg: ["征伐隊戒指", "遠征隊戒指", "殲滅隊戒指", "征服者戒指"], j: [ [{k:"dusk", q:3}], [{k:"holy", q:6}], [{k:"holy", q:10}], [{k:"holy", q:10}] ] },
+        "acc_glove":      { cat: "acc", n: ["遠征隊戒指", "殲滅隊手套", "征服者手套", "征服者轉生手套"], bg: ["征伐隊戒指", "遠征隊戒指", "殲滅隊手套", "征服者手套"], j: [ [{k:"dusk", q:3}], [{k:"holy", q:6}], [{k:"holy", q:10}], [{k:"holy", q:10}] ] },
+        "acc_magic_ring": { cat: "acc", n: ["遠征隊魔法戒指", "殲滅隊魔法戒指", "征服者魔法戒指", "征服者轉生魔法戒指"], bg: ["征伐隊戒指", "遠征隊魔法戒指", "殲滅隊魔法戒指", "征服者魔法戒指"], j: [ [{k:"holy", q:3}], [{k:"holy", q:6}], [{k:"holy", q:10}], [{k:"holy", q:10}] ] },
+        "acc_necklace":   { cat: "acc", n: ["遠征隊魔法戒指", "殲滅隊項鍊", "征服者項鍊", "征服者轉生項鍊"], bg: ["征伐隊戒指", "遠征隊魔法戒指", "殲滅隊項鍊", "征服者項鍊"], j: [ [{k:"holy", q:3}], [{k:"holy", q:6}], [{k:"holy", q:10}], [{k:"holy", q:10}] ] }
+    };
+
+    let state = {
+        prices: { ...defaultPrices },
+        category: "armor",
+        route: "armor_armor",
+        enabledStages: [true, true, true, true, true],
+        enchantSlots: [true, true, true], // 對應 4洞, 3洞, 2洞(職業魂)
+        view: "stages",
+        stock: {}
+    };
+
+    const fmt = num => Math.round(num).toLocaleString('en-US');
+
+    function toChineseUnit(num) {
+        if (!num || num <= 0) return "0 Zeny";
+        if (num >= 100000000) return `約 ${(num / 100000000).toFixed(2).replace(/\.00$/, '')} 億`;
+        if (num >= 10000) return `約 ${(num / 10000).toFixed(1).replace(/\.0$/, '')} 萬`;
+        return `${fmt(num)} Z`;
+    }
+
+    function parseSmartNumber(raw) {
+        if (typeof raw === "number") return Math.max(0, Math.round(raw));
+        const str = String(raw || "").trim().replace(/,/g, "");
+        if (!str) return 0;
+        const match = str.match(/^(\d+(?:\.\d+)?)\s*([kwm萬億]?)$/i);
+        if (!match) {
+            const digits = parseFloat(str.replace(/[^\d.]/g, ""));
+            return isNaN(digits) ? 0 : Math.max(0, Math.round(digits));
+        }
+        const val = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        let mult = 1;
+        if (unit === "k") mult = 1000;
+        else if (unit === "w" || unit === "萬") mult = 10000;
+        else if (unit === "m") mult = 1000000;
+        else if (unit === "億") mult = 100000000;
+        return Math.max(0, Math.round(val * mult));
+    }
+
+    function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function loadState() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("ro_equip_calc_v3");
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.prices) state.prices = { ...defaultPrices, ...parsed.prices };
+                if (parsed.category && categories[parsed.category]) state.category = parsed.category;
+                if (parsed.route && pathsData[parsed.route]) state.route = parsed.route;
+                if (Array.isArray(parsed.enabledStages) && parsed.enabledStages.length === 5) state.enabledStages = parsed.enabledStages;
+                if (Array.isArray(parsed.enchantSlots) && parsed.enchantSlots.length === 3) state.enchantSlots = parsed.enchantSlots;
+                if (parsed.stock) state.stock = parsed.stock;
+            }
+        } catch (e) {}
+    }
+
+    // 通用複製函式（含本機 file:// 相容備援）
+    function copyTextToClipboard(text, toastMsg) {
+        const done = () => showToast(toastMsg || `✓ 已複製「${text}」`);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+        } else {
+            fallbackCopy(text, done);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            document.execCommand("copy");
+            if (callback) callback();
+        } catch (e) {
+            showToast("複製失敗，請手動選取");
+        }
+        document.body.removeChild(ta);
+    }
+
+    function initCopyableNames() {
+        document.querySelectorAll(".copy-name").forEach(el => {
+            el.addEventListener("click", function (e) {
+                e.stopPropagation();
+                const text = this.dataset.copy || this.textContent.trim();
+                copyTextToClipboard(text, `✓ 已複製材料名稱「${text}」`);
+            });
+        });
+    }
+
+    function initPriceInputs() {
+        document.querySelectorAll(".price-input").forEach(input => {
+            const key = input.dataset.key;
+            input.value = fmt(state.prices[key]);
+            updatePriceHint(key, state.prices[key]);
+
+            input.addEventListener("focus", function () {
+                this.value = state.prices[key] === 0 ? "" : String(state.prices[key]);
+                this.select();
+            });
+
+            input.addEventListener("input", function () {
+                const val = parseSmartNumber(this.value);
+                state.prices[key] = val;
+                updatePriceHint(key, val);
+                saveState();
+                renderAll();
+            });
+
+            input.addEventListener("blur", function () {
+                this.value = fmt(state.prices[key]);
+            });
+
+            input.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") this.blur();
+            });
+        });
+    }
+
+    function updatePriceHint(key, val) {
+        const hintEl = document.getElementById("hint_" + key);
+        if (hintEl) hintEl.textContent = `= ${toChineseUnit(val)}`;
+    }
+
+    function resetPrices() {
+        state.prices = { ...defaultPrices };
+        document.querySelectorAll(".price-input").forEach(input => {
+            const key = input.dataset.key;
+            input.value = fmt(state.prices[key]);
+            updatePriceHint(key, state.prices[key]);
+        });
+        saveState();
+        renderAll();
+        showToast("已恢復預設材料價格");
+    }
+
+    function toggleSidebar() {
+        const sb = document.getElementById("priceSidebar");
+        const btn = document.getElementById("toggleSidebarBtn");
+        sb.classList.toggle("collapsed");
+        btn.textContent = sb.classList.contains("collapsed") ? "▶ 展開價格欄" : "◀ 收合價格欄";
+    }
+
+    function selectCategory(cat) {
+        state.category = cat;
+        const routes = categories[cat].routes;
+        if (!routes.some(r => r.id === state.route)) {
+            state.route = routes[0].id;
+        }
+        saveState();
+        renderRouteControls();
+        renderAll();
+    }
+
+    function selectRoute(routeId) {
+        state.route = routeId;
+        saveState();
+        renderRouteControls();
+        renderAll();
+    }
+
+    function setStagePreset(arr) {
+        state.enabledStages = [...arr];
+        if (arr[4] && state.enchantSlots.every(v => !v)) {
+            state.enchantSlots = [true, true, true];
+        }
+        saveState();
+        renderAll();
+    }
+
+    function toggleStage(idx) {
+        state.enabledStages[idx] = !state.enabledStages[idx];
+        if (idx === 4 && state.enabledStages[4] && state.enchantSlots.every(v => !v)) {
+            state.enchantSlots = [true, true, true];
+        }
+        saveState();
+        renderAll();
+    }
+
+    function toggleEnchantSlot(slotIdx) {
+        state.enchantSlots[slotIdx] = !state.enchantSlots[slotIdx];
+        if (state.enchantSlots.some(Boolean)) {
+            state.enabledStages[4] = true;
+        } else {
+            state.enabledStages[4] = false;
+        }
+        saveState();
+        renderAll();
+    }
+
+    function switchView(view) {
+        state.view = view;
+        document.getElementById("tabBtnStages").classList.toggle("active", view === "stages");
+        document.getElementById("tabBtnSummary").classList.toggle("active", view === "summary");
+        document.getElementById("viewStages").style.display = view === "stages" ? "block" : "none";
+        document.getElementById("viewSummary").style.display = view === "summary" ? "block" : "none";
+    }
+
+    function renderRouteControls() {
+        document.querySelectorAll(".cat-tab").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.cat === state.category);
+        });
+
+        const pillsWrap = document.getElementById("subroutePills");
+        pillsWrap.innerHTML = categories[state.category].routes.map(r => `
+            <button class="route-pill ${r.id === state.route ? 'active' : ''}" onclick="selectRoute('${r.id}')">
+                <span class="route-pill-title">${r.label}</span>
+                <span class="route-pill-sub">${r.sub}</span>
+            </button>
+        `).join("");
+
+        const catInfo = categories[state.category];
+        document.getElementById("imgCategoryLabel").textContent = `📖 ${catInfo.label}`;
+        document.getElementById("equip_img").src = catInfo.img;
+    }
+
+    function computeStages() {
+        const data = pathsData[state.route];
+        const p = state.prices;
+        const isArmor = data.cat === "armor";
+
+        const rebornPurpleQty = isArmor ? 50 : 20;
+        const rebornBreathQty = isArmor ? 3 : 1;
+
+        const stagesDef = [
+            { name: `1. ${data.n[0]}`, crystalLabel: "微微發光的結晶體", cQty: 50, cKey: "price_slight", specials: [] },
+            { name: `2. ${data.n[1]}`, crystalLabel: "藍光結晶體", cQty: 50, cKey: "price_blue", specials: [] },
+            { name: `3. ${data.n[2]}`, crystalLabel: "紅色魔力結晶體", cQty: 50, cKey: "price_red_magic", specials: [] },
+            { name: `4. ${data.n[3]}`, crystalLabel: "紫色魔力結晶體", cQty: rebornPurpleQty, cKey: "price_purple_magic", specials: [{ key: "price_breath", label: "亡者的寒氣", qty: rebornBreathQty }] },
+            { name: `5. ${data.n[3]} (附魔)`, crystalLabel: null, cQty: 0, cKey: null, specials: [] }
+        ];
+
+        return stagesDef.map((st, i) => {
+            const enabled = state.enabledStages[i];
+            const baseCost = i === 0 ? p.price_base : 0;
+            const baseName = i < 4 ? data.bg[i] : data.n[3];
+            const crystalCost = st.cKey ? p[st.cKey] * st.cQty : 0;
+
+            let jellyCost = 0;
+            let jellies = [];
+            if (i < 4 && data.j[i]) {
+                jellies = data.j[i].map(jObj => {
+                    const cost = p.price_jelly * jObj.q;
+                    jellyCost += cost;
+                    return { k: jObj.k, name: jellyNames[jObj.k], qty: jObj.q, cost };
+                });
+            }
+
+            let specialCost = 0;
+            const specials = st.specials.map(sp => {
+                const cost = p[sp.key] * sp.qty;
+                specialCost += cost;
+                return { ...sp, cost };
+            });
+
+            // 第5階 4洞 / 3洞 / 2洞(職業魂) 明細計算
+            let enchantSlots = [];
+            let enchantCost = 0;
+            if (i === 4) {
+                enchantSlots = enchantSlotsDef.map((slot, sIdx) => {
+                    const slotEnabled = state.enchantSlots[sIdx];
+                    let slotCost = 0;
+                    const items = slot.items.map(it => {
+                        const c = p[it.key] * it.qty;
+                        slotCost += c;
+                        return { ...it, cost: c };
+                    });
+                    if (enabled && slotEnabled) enchantCost += slotCost;
+                    return { ...slot, sIdx, slotEnabled, items, slotCost };
+                });
+            }
+
+            const stageCost = i === 4
+                ? (enabled ? enchantCost : enchantSlots.reduce((sum, s) => sum + s.slotCost, 0))
+                : (baseCost + crystalCost + jellyCost + specialCost);
+
+            return {
+                idx: i,
+                enabled,
+                name: st.name,
+                baseName,
+                baseCost,
+                crystalLabel: st.crystalLabel,
+                cQty: st.cQty,
+                cKey: st.cKey,
+                crystalCost,
+                jellies,
+                jellyCost,
+                specials,
+                specialCost,
+                enchantSlots,
+                stageCost
+            };
+        });
+    }
+
+    function renderAll() {
+        const stages = computeStages();
+        const activeTotal = stages.reduce((sum, s) => sum + (s.enabled ? s.stageCost : 0), 0);
+        const equipTotal = stages.slice(0, 4).reduce((sum, s) => sum + (s.enabled ? s.stageCost : 0), 0);
+        const enchantTotal = stages[4].enabled ? stages[4].stageCost : 0;
+        const enabledCount = stages.filter(s => s.enabled).length;
+
+        const activeRouteObj = categories[state.category].routes.find(r => r.id === state.route);
+        document.getElementById("kpiRouteName").textContent = activeRouteObj ? activeRouteObj.label : "";
+        document.getElementById("kpiTotalCost").textContent = `$ ${fmt(activeTotal)}`;
+        document.getElementById("kpiTotalHuman").textContent = `${toChineseUnit(activeTotal)} Zeny`;
+        document.getElementById("kpiEquipCost").textContent = `$ ${fmt(equipTotal)}`;
+        document.getElementById("kpiEnchantCost").textContent = `$ ${fmt(enchantTotal)}`;
+        document.getElementById("selectedCountText").textContent = `已選 ${enabledCount} / 5 階段`;
+
+        const tbody = document.getElementById("calc_tbody");
+        tbody.innerHTML = "";
+        let runningTotal = 0;
+
+        stages.forEach(s => {
+            if (s.enabled) runningTotal += s.stageCost;
+            const pct = (s.enabled && activeTotal > 0) ? Math.round((s.stageCost / activeTotal) * 100) : 0;
+
+            const baseHtml = s.idx === 0
+                ? `<span style="color:#d8b4fe;">${s.baseName} x 1</span><span class="sub-cost">征伐底材：$ ${fmt(s.baseCost)}</span>`
+                : `<span style="color:#b026ff;">${s.baseName} x 1</span><span class="sub-cost">(上階成品)</span>`;
+
+            const tr = document.createElement("tr");
+            if (!s.enabled) tr.className = "stage-excluded";
+
+            if (s.idx < 4) {
+                const crystalHtml = `<span style="color:#00ffcc;">${s.crystalLabel} x ${s.cQty}</span><span class="sub-cost">$ ${fmt(s.crystalCost)}</span>`;
+                const jellyHtml = s.jellies.map(j => `<span style="color:#ff5c77;">${j.name} x ${j.qty}</span>`).join("<br>") +
+                    `<span class="sub-cost">$ ${fmt(s.jellyCost)}</span>`;
+                const specialHtml = s.specials.length
+                    ? s.specials.map(sp => `${sp.label} x ${sp.qty}<span class="sub-cost">$ ${fmt(sp.cost)}</span>`).join("<br>")
+                    : `<span style="color:var(--text-muted);">-</span>`;
+
+                tr.innerHTML = `
+                    <td>
+                        <label class="stage-cell" style="cursor:pointer;">
+                            <input type="checkbox" class="cyber-check" ${s.enabled ? "checked" : ""} onchange="toggleStage(${s.idx})">
+                            <span>${s.name}</span>
+                        </label>
+                    </td>
+                    <td class="col-mat">${baseHtml}</td>
+                    <td class="col-mat">${crystalHtml}</td>
+                    <td class="col-mat">${jellyHtml}</td>
+                    <td class="col-mat">${specialHtml}</td>
+                    <td>
+                        <div class="cost-number">$ ${fmt(s.stageCost)}</div>
+                        <div class="share-bar-bg"><div class="share-bar-fill" style="width:${pct}%"></div></div>
+                        <span class="share-pct">${s.enabled ? `佔總費 ${pct}%` : "未計入"}</span>
+                    </td>
+                    <td class="total-cost-number">${s.enabled ? `$ ${fmt(runningTotal)}` : "-"}</td>
+                `;
+            } else {
+                // 第5階 附魔（橫跨 3 格材料欄，依序顯示 4洞 -> 3洞 -> 2洞(職業魂)）
+                const slotsHtml = s.enchantSlots.map(slot => {
+                    const matStr = slot.items.map(it => `${it.label}*${it.qty}`).join("、");
+                    return `
+                        <div class="enchant-slot-row ${!slot.slotEnabled ? 'slot-off' : ''}">
+                            <label class="enchant-slot-label">
+                                <input type="checkbox" class="cyber-check mini" ${slot.slotEnabled ? "checked" : ""} onchange="toggleEnchantSlot(${slot.sIdx})">
+                                <span><span class="slot-badge">${slot.label}</span>${matStr}</span>
+                            </label>
+                            <span class="slot-cost">$ ${fmt(slot.slotCost)}</span>
+                        </div>
+                    `;
+                }).join("");
+
+                tr.innerHTML = `
+                    <td>
+                        <label class="stage-cell" style="cursor:pointer;">
+                            <input type="checkbox" class="cyber-check" ${s.enabled ? "checked" : ""} onchange="toggleStage(${s.idx})">
+                            <span>${s.name}</span>
+                        </label>
+                    </td>
+                    <td class="col-mat">${baseHtml}</td>
+                    <td class="col-mat" colspan="3">
+                        <div class="enchant-slot-list">${slotsHtml}</div>
+                    </td>
+                    <td>
+                        <div class="cost-number">$ ${fmt(s.stageCost)}</div>
+                        <div class="share-bar-bg"><div class="share-bar-fill" style="width:${pct}%"></div></div>
+                        <span class="share-pct">${s.enabled ? `佔總費 ${pct}%` : "未計入"}</span>
+                    </td>
+                    <td class="total-cost-number">${s.enabled ? `$ ${fmt(runningTotal)}` : "-"}</td>
+                `;
+            }
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById("calc_tfoot").innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:right; color:var(--tech-green);">所選階段總計成本 (${enabledCount} 個階段)：</td>
+                <td colspan="2" class="total-cost-number" style="font-size:1.15em;">
+                    $ ${fmt(activeTotal)} <span style="font-size:0.78em; color:var(--text-muted); font-weight:normal;">(${toChineseUnit(activeTotal)})</span>
+                </td>
+            </tr>
+        `;
+
+        renderShoppingList(stages);
+    }
+
+    function buildMatMap(stages) {
+        const matMap = new Map();
+        const addMat = (id, name, copyName, qty, unitPrice) => {
+            if (!qty) return;
+            if (!matMap.has(id)) matMap.set(id, { id, name, copyName, qty: 0, unitPrice });
+            matMap.get(id).qty += qty;
+        };
+
+        stages.forEach(s => {
+            if (!s.enabled) return;
+            if (s.idx === 0) addMat("base", `${s.baseName} (征伐底材)`, "征伐底材", 1, state.prices.price_base);
+            if (s.cKey) addMat(s.cKey, s.crystalLabel, s.crystalLabel, s.cQty, state.prices[s.cKey]);
+            s.jellies.forEach(j => addMat("jelly_" + j.k, j.name, j.name, j.qty, state.prices.price_jelly));
+            s.specials.forEach(sp => addMat(sp.key, sp.label, sp.label, sp.qty, state.prices[sp.key]));
+            if (s.idx === 4) {
+                s.enchantSlots.forEach(slot => {
+                    if (!slot.slotEnabled) return;
+                    slot.items.forEach(it => addMat(it.key, it.label, it.label, it.qty, state.prices[it.key]));
+                });
+            }
+        });
+        return matMap;
+    }
+
+    function renderShoppingList(stages) {
+        const matMap = buildMatMap(stages);
+        const tbody = document.getElementById("summary_tbody");
+        tbody.innerHTML = "";
+        let remainingTotal = 0;
+
+        if (matMap.size === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">請至少勾選一個升級階段</td></tr>`;
+            document.getElementById("summary_tfoot").innerHTML = "";
+            return;
+        }
+
+        matMap.forEach(item => {
+            const owned = Math.max(0, parseInt(state.stock[item.id]) || 0);
+            const need = Math.max(0, item.qty - owned);
+            const cost = need * item.unitPrice;
+            remainingTotal += cost;
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="font-weight:600; color:var(--text-main);">
+                    <span class="copy-name" onclick="copyTextToClipboard('${item.copyName}', '✓ 已複製材料名稱「${item.copyName}」')" title="點擊複製材料名稱">${item.name}</span>
+                </td>
+                <td style="font-family:'Consolas',monospace; color:var(--tech-green); font-weight:700;">${fmt(item.qty)}</td>
+                <td>
+                    <input type="number" min="0" class="stock-input" value="${owned}" oninput="updateStock('${item.id}', this.value)">
+                </td>
+                <td style="font-family:'Consolas',monospace; font-weight:700; color:${need === 0 ? 'var(--tech-green)' : 'var(--cyber-gold)'};">
+                    ${need === 0 ? '✓ 足夠' : fmt(need)}
+                </td>
+                <td style="font-family:'Consolas',monospace; color:var(--text-muted);">$ ${fmt(item.unitPrice)}</td>
+                <td class="cost-number">$ ${fmt(cost)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById("summary_tfoot").innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:right; color:var(--tech-green);">扣抵庫存後，尚需準備 Zeny：</td>
+                <td class="total-cost-number" style="font-size:1.15em;">
+                    $ ${fmt(remainingTotal)} <span style="font-size:0.78em; color:var(--text-muted); font-weight:normal;">(${toChineseUnit(remainingTotal)})</span>
+                </td>
+            </tr>
+        `;
+    }
+
+    function updateStock(matId, val) {
+        state.stock[matId] = Math.max(0, parseInt(val) || 0);
+        saveState();
+        const stages = computeStages();
+        const matMap = buildMatMap(stages);
+        const rows = document.querySelectorAll("#summary_tbody tr");
+        let remainingTotal = 0;
+        let idx = 0;
+
+        matMap.forEach(item => {
+            const owned = state.stock[item.id] || 0;
+            const need = Math.max(0, item.qty - owned);
+            const cost = need * item.unitPrice;
+            remainingTotal += cost;
+            if (rows[idx]) {
+                const cells = rows[idx].children;
+                cells[3].style.color = need === 0 ? 'var(--tech-green)' : 'var(--cyber-gold)';
+                cells[3].textContent = need === 0 ? '✓ 足夠' : fmt(need);
+                cells[5].textContent = `$ ${fmt(cost)}`;
+            }
+            idx++;
+        });
+
+        document.getElementById("summary_tfoot").innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:right; color:var(--tech-green);">扣抵庫存後，尚需準備 Zeny：</td>
+                <td class="total-cost-number" style="font-size:1.15em;">
+                    $ ${fmt(remainingTotal)} <span style="font-size:0.78em; color:var(--text-muted); font-weight:normal;">(${toChineseUnit(remainingTotal)})</span>
+                </td>
+            </tr>
+        `;
+    }
+
+    function copySummary() {
+        const stages = computeStages();
+        const matMap = buildMatMap(stages);
+        const activeRoute = categories[state.category].routes.find(r => r.id === state.route);
+        const total = stages.reduce((sum, s) => sum + (s.enabled ? s.stageCost : 0), 0);
+
+        let lines = [
+            `【RO 副本裝備升級試算】${activeRoute ? activeRoute.label : ""}`,
+            `--------------------------------`
+        ];
+        stages.forEach(s => {
+            if (!s.enabled) return;
+            lines.push(`${s.name}：$ ${fmt(s.stageCost)}`);
+            if (s.idx === 4) {
+                s.enchantSlots.forEach(slot => {
+                    if (slot.slotEnabled) {
+                        lines.push(`  ├ ${slot.label}：${slot.items.map(it => `${it.label}*${it.qty}`).join("、")} ($ ${fmt(slot.slotCost)})`);
+                    }
+                });
+            }
+        });
+        lines.push(`--------------------------------`);
+        lines.push(`【需準備材料總計】`);
+        matMap.forEach(item => {
+            lines.push(`・${item.name} x ${item.qty}`);
+        });
+        lines.push(`--------------------------------`);
+        lines.push(`總花費：$ ${fmt(total)} Zeny (${toChineseUnit(total)})`);
+
+        copyTextToClipboard(lines.join("\n"), "✓ 已複製試算明細與材料清單！");
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove("show"), 2400);
+    }
+
+    function handleImgError(img) {
+        if (img.dataset.fallback) return;
+        img.dataset.fallback = "1";
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='420' viewBox='0 0 320 420'>
+            <rect width='320' height='420' fill='#0d1018'/>
+            <rect x='12' y='12' width='296' height='396' fill='none' stroke='#00ffcc' stroke-opacity='0.35' stroke-dasharray='6 4' rx='8'/>
+            <text x='160' y='195' fill='#00ffcc' font-family='sans-serif' font-size='16' font-weight='bold' text-anchor='middle'>無本地圖鑑圖片</text>
+            <text x='160' y='222' fill='#94a3b8' font-family='monospace' font-size='12' text-anchor='middle'>請確認 images/ 資料夾圖片</text>
+        </svg>`;
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
+
+    function openModal(imgSrc) {
+        document.getElementById("modalImg").src = imgSrc;
+        document.getElementById("imageModal").style.display = "flex";
+    }
+    function closeModal() {
+        document.getElementById("imageModal").style.display = "none";
+    }
+
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") closeModal();
+    });
+
+    window.onload = function () {
+        loadState();
+        initCopyableNames();
+        initPriceInputs();
+        renderRouteControls();
+        renderAll();
+    };
+</script>
+<script src="nav.js"></script>
+</body>
+</html>
