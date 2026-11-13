@@ -99,7 +99,7 @@
 
         mountEl.innerHTML = `
             <nav class="be-nav-bar" aria-label="BE_希希芙 工具箱導覽">
-                <span class="be-nav-brand">⚡BE_希希芙 工具箱</span>
+                <span class="be-nav-brand">⚡BE_CCF 雜物工具箱</span>
                 <span class="be-nav-divider">|</span>
                 <div class="be-nav-links">${linksHtml}</div>
             </nav>
