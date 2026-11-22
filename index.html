@@ -299,11 +299,15 @@
         .left-indicator.visible { opacity: 1; pointer-events: auto; transform: translateY(-50%) translateX(0); }
         .right-indicator.visible { opacity: 1; pointer-events: auto; transform: translateY(-50%) translateX(0); }
 
-        /* === 升級預測與戰術指揮面板 === */
+/* === 升級預測與戰術指揮面板 === */
         #global-progress {
             position: absolute;
-            bottom: 20px;
-            right: 40px;
+            top: 14px;
+            left: 16px;
+            bottom: auto;
+            right: auto;
+            transform: scale(0.7);
+            transform-origin: top left;
             width: clamp(340px, 24vw, 410px);
             background-color: var(--panel-bg);
             background-image: 
