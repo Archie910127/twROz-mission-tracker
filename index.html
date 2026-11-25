@@ -198,15 +198,71 @@
             position: relative;
             margin: auto;
             flex-shrink: 0;
+            width: 1280px;
+            height: 1024px;
         }
 
         #map-container {
             position: relative;
+            width: 1280px;
+            height: 1024px;
             background-image: linear-gradient(rgba(6, 2, 14, 0.14), rgba(6, 2, 14, 0.14)), url('map_background.jpg');
             background-color: #0a0514;
             background-size: 100% 100%;
             background-repeat: no-repeat;
             transform-origin: top left;
+        }
+
+        /* 整張地圖直接切割成 21 × 17 均勻方塊 */
+        #map-grid {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: repeat(21, 1fr);
+            grid-template-rows: repeat(17, 1fr);
+        }
+
+        .grid-cell {
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.045);
+            transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+            cursor: pointer;
+        }
+
+        /* 沒任務的格子：平常幾乎隱形不擋底圖，滑鼠移過去就亮起並顯示格子座標 */
+        .grid-cell.empty-cell:hover {
+            background: rgba(0, 255, 204, 0.14);
+            border-color: rgba(0, 255, 204, 0.8);
+            box-shadow: inset 0 0 12px rgba(0, 255, 204, 0.38), 0 0 10px rgba(0, 255, 204, 0.3);
+            z-index: 25;
+        }
+
+        .empty-cell-coord {
+            position: absolute;
+            bottom: 2px;
+            right: 3px;
+            font-size: 10px;
+            font-family: monospace;
+            font-weight: 700;
+            color: var(--cyber-cyan);
+            background: rgba(0, 0, 0, 0.72);
+            padding: 0 3px;
+            border-radius: 2px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.12s ease;
+        }
+        .grid-cell.empty-cell:hover .empty-cell-coord {
+            opacity: 1;
+        }
+
+        .grid-cell.has-quest {
+            border-color: transparent;
+            z-index: 20;
+        }
+        .grid-cell.has-quest:hover,
+        .grid-cell.node-active {
+            z-index: 80;
         }
 
         #map-popup-host {
@@ -334,12 +390,8 @@
         }
 
         .progress-header-toggle {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--cyber-purple-dim);
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; padding-bottom: 8px; border-bottom: 1px solid var(--cyber-purple-dim);
         }
         .progress-title { font-size: 15px; font-weight: 900; color: #fff; letter-spacing: 1.5px; text-shadow: 0 0 10px var(--cyber-purple-glow); }
         #progress-text { color: var(--cyber-green); text-shadow: 0 0 10px var(--cyber-green-glow); font-size: 16px; font-weight: 900; font-family: monospace; }
@@ -349,23 +401,14 @@
             clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
         }
         .progress-bar-fill { 
-            height: 100%; 
-            background: linear-gradient(90deg, var(--cyber-red), var(--cyber-purple), var(--cyber-green)); 
-            background-size: 200% 100%;
-            width: 0%; 
-            transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); 
-            box-shadow: 0 0 15px var(--cyber-green-glow); 
-            animation: flow-gradient 2.5s infinite linear;
+            height: 100%; background: linear-gradient(90deg, var(--cyber-red), var(--cyber-purple), var(--cyber-green)); background-size: 200% 100%;
+            width: 0%; transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); box-shadow: 0 0 15px var(--cyber-green-glow); animation: flow-gradient 2.5s infinite linear;
         }
         @keyframes flow-gradient { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
         #prediction-content {
-            display: none;
-            margin-top: 12px;
-            padding-top: 8px;
-            border-top: 1px dashed rgba(181, 23, 255, 0.4);
-            max-height: 410px;
-            overflow-y: auto;
+            display: none; margin-top: 12px; padding-top: 8px; border-top: 1px dashed rgba(181, 23, 255, 0.4);
+            max-height: 410px; overflow-y: auto;
         }
 
         .pred-row {
@@ -456,12 +499,7 @@
         ::-webkit-scrollbar-thumb { background: var(--cyber-purple); border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--cyber-green); }
 
-        /* === 正方形電競任務方格 (對齊圖2淡黃方格線) === */
-        .node-container {
-            position: absolute;
-            z-index: 20;
-        }
-
+        /* === 方格內電競任務塊 === */
         @keyframes tile-alert {
             0%, 100% { box-shadow: 0 0 8px rgba(255, 30, 86, 0.55), inset 0 0 8px rgba(255, 30, 86, 0.2); }
             50% { box-shadow: 0 0 16px rgba(255, 30, 86, 0.9), inset 0 0 12px rgba(255, 30, 86, 0.35); }
@@ -472,7 +510,7 @@
             height: 100%;
             background: rgba(8, 4, 16, 0.72);
             border: 2px solid var(--tile-color, var(--cyber-red));
-            border-radius: 4px;
+            border-radius: 3px;
             cursor: pointer;
             display: flex;
             flex-direction: column;
@@ -495,24 +533,19 @@
 
         .grid-tile:hover,
         .grid-tile.tile-active {
-            transform: scale(1.15);
-            background: rgba(16, 8, 32, 0.94);
+            transform: scale(1.12);
+            background: rgba(16, 8, 32, 0.95);
             border-color: var(--cyber-cyan) !important;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.85), inset 0 0 12px rgba(0, 255, 204, 0.35) !important;
+            box-shadow: 0 0 22px rgba(0, 255, 204, 0.85), inset 0 0 12px rgba(0, 255, 204, 0.35) !important;
             animation: none;
         }
 
-        .node-container:hover,
-        .node-container.node-active {
-            z-index: 80;
-        }
-
         .tile-badge {
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 900;
             font-family: monospace;
             color: #fff;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(0, 0, 0, 0.78);
             padding: 0 4px;
             border-radius: 3px;
             line-height: 1.3;
@@ -520,7 +553,7 @@
         }
 
         .tile-label {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 900;
             color: #fff;
             text-shadow: 0 1px 3px #000, 0 0 6px var(--tile-color, #b517ff);
@@ -540,8 +573,8 @@
             max-width: 100%;
         }
         .mini-dot {
-            width: 7px;
-            height: 7px;
+            width: 8px;
+            height: 8px;
             border-radius: 1px;
             border: 1px solid rgba(255, 255, 255, 0.75);
         }
@@ -552,7 +585,7 @@
         }
         .radar-ping {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            border: 3px solid var(--cyber-cyan); border-radius: 6px; pointer-events: none;
+            border: 3px solid var(--cyber-cyan); border-radius: 4px; pointer-events: none;
             animation: target-ping 1s ease-out 3; z-index: 100; box-shadow: 0 0 18px var(--cyber-cyan);
         }
 
@@ -637,7 +670,7 @@
             </div>
             <div class="hud-stat-box">
                 <span style="color:var(--cyber-red);">⌖ GRID:</span>
-                <span id="radar-coords" style="color:var(--cyber-green);">C 00.0 | R 00.0</span>
+                <span id="radar-coords" style="color:var(--cyber-green);">C 00 | R 00</span>
             </div>
             <div class="hud-stat-box">
                 <span style="color:var(--cyber-purple);">⚡ 獲得經驗:</span>
@@ -741,7 +774,9 @@
 
             <div class="map-scroll-area" id="map-scroll-area">
                 <div id="map-scale-stage">
-                    <div id="map-container"></div>
+                    <div id="map-container">
+                        <div id="map-grid"></div>
+                    </div>
                 </div>
             </div>
 
@@ -784,11 +819,13 @@
     <div id="hud-toast"><span style="color:var(--cyber-green)">⚡</span><span id="toast-msg">提示訊息</span></div>
 
     <script>
-        /* === 1. 地圖尺度與標準方格系統 (對齊 Orbis of Midgard 方格底圖) === */
-        let MAP_W = 1200;
-        let MAP_H = 967; // 依載入的 map_background.jpg 實際比例自動調整
-        const GRID_COLS = 23.0; // 全圖寬度約 23 格正正方形
-        const CELL_SIZE = Math.round(MAP_W / GRID_COLS); // 52px 正正方形
+        /* === 1. 1280×1024 原圖直接切割成 21 欄 × 17 列均勻方格 === */
+        const MAP_W = 1280;
+        const MAP_H = 1024;
+        const GRID_COLS = 21; // col: 0 ~ 20
+        const GRID_ROWS = 17; // row: 0 ~ 16
+        const CELL_W = MAP_W / GRID_COLS;
+        const CELL_H = MAP_H / GRID_ROWS;
 
         const states = ["未完成", "待完成", "可提交", "完成"];
         const colors = ["#ff1e56", "#ff9900", "#b517ff", "#00ff87"]; 
@@ -801,59 +838,59 @@
 
         const SHEET_CSV_URL = "mission_data.csv"; 
 
-        // 原本 CSV 20 組座標 ➔ 圖 2 標準正方形方格對照表 (col, row, 格子短標題)
+        // 原本 CSV 座標 ➔ 1280×1024 切割方格 (col: 0~20, row: 0~16)
         const LEGACY_COORD_TO_GRID = {
-            "868,177":  { col: 14.1, row: 4.4, label: "國界" },
-            "868,125":  { col: 15.1, row: 4.4, label: "陣地" },
-            "805,125":  { col: 13.8, row: 3.4, label: "學院" },
-            "820,80":   { col: 13.8, row: 2.4, label: "朱諾" },
-            "741,82":   { col: 12.8, row: 2.4, label: "火2" },
-            "747,40":   { col: 12.8, row: 1.4, label: "魔書" },
-            "681,88":   { col: 11.8, row: 2.4, label: "遺失物" },
-            "742,172":  { col: 12.8, row: 3.4, label: "魔羌" },
-            "934,0":    { col: 15.9, row: 0.3, label: "毀葛" },
-            "1057,123": { col: 18.4, row: 1.6, label: "離子體" },
-            "1115,124": { col: 18.9, row: 2.7, label: "皮影魔" },
-            "1115,80":  { col: 20.3, row: 2.1, label: "奧丁" },
-            "616,168":  { col: 10.3, row: 4.6, label: "艾音" },
-            "553,211":  { col: 9.3,  row: 5.6, label: "設備" },
-            "553,122":  { col: 9.3,  row: 3.6, label: "小狗" },
-            "433,218":  { col: 7.2,  row: 5.4, label: "企都" },
-            "440,175":  { col: 7.2,  row: 4.4, label: "木材" },
-            "494,210":  { col: 8.2,  row: 5.4, label: "磚頭" },
-            "494,168":  { col: 8.2,  row: 4.4, label: "鞭子" },
-            "316,607":  { col: 5.5,  row: 15.1, label: "克魔島" }
+            "433,218":  { col: 6,  row: 5,  label: "企都" },
+            "440,175":  { col: 6,  row: 4,  label: "木材" },
+            "494,168":  { col: 7,  row: 4,  label: "鞭子" },
+            "494,210":  { col: 7,  row: 5,  label: "磚頭" },
+            "553,122":  { col: 8,  row: 3,  label: "小狗" },
+            "553,211":  { col: 8,  row: 5,  label: "設備" },
+            "616,168":  { col: 9,  row: 4,  label: "艾音" },
+            "747,40":   { col: 12, row: 1,  label: "魔書" },
+            "681,88":   { col: 11, row: 2,  label: "遺失物" },
+            "741,82":   { col: 12, row: 2,  label: "火2" },
+            "820,80":   { col: 13, row: 2,  label: "朱諾" },
+            "742,172":  { col: 12, row: 3,  label: "魔羌" },
+            "805,125":  { col: 13, row: 3,  label: "學院" },
+            "868,177":  { col: 13, row: 4,  label: "國界" },
+            "868,125":  { col: 14, row: 4,  label: "陣地" },
+            "934,0":    { col: 14, row: 0,  label: "毀葛" },
+            "1057,123": { col: 16, row: 1,  label: "離子體" },
+            "1115,124": { col: 17, row: 2,  label: "皮影魔" },
+            "1115,80":  { col: 18, row: 2,  label: "奧丁" },
+            "316,607":  { col: 5,  row: 14, label: "克魔島" }
         };
 
         // 供未來 CSV 直接填寫地圖代碼擴充用
         const MAP_NAME_TO_GRID = {
-            "yuno": { col: 11.8, row: 1.4, label: "朱諾城" },
-            "yuno_fild01": { col: 14.1, row: 4.4, label: "國界" },
-            "yuno_fild02": { col: 13.8, row: 2.4, label: "朱諾02" },
-            "yuno_fild03": { col: 12.8, row: 2.4, label: "火2" },
-            "yuno_fild04": { col: 11.8, row: 2.4, label: "朱諾04" },
-            "yuno_fild06": { col: 12.8, row: 1.4, label: "朱諾06" },
-            "yuno_fild08": { col: 13.8, row: 3.4, label: "學院" },
-            "yuno_fild09": { col: 15.1, row: 4.4, label: "朱諾09" },
-            "yuno_fild11": { col: 12.8, row: 3.4, label: "朱諾11" },
-            "hugel": { col: 15.9, row: 0.3, label: "毀葛" },
-            "einbroch": { col: 9.3, row: 4.6, label: "艾音布羅克" },
-            "einbech": { col: 10.3, row: 4.6, label: "艾音貝赫" },
-            "ein_fild04": { col: 9.3, row: 3.6, label: "艾音04" },
-            "ein_fild08": { col: 9.3, row: 5.6, label: "艾音08" },
-            "lighthalzen": { col: 7.2, row: 5.4, label: "企都" },
-            "lhz_fild01": { col: 7.2, row: 4.4, label: "企都01" },
-            "lhz_fild02": { col: 8.2, row: 4.4, label: "企都02" },
-            "lhz_fild03": { col: 8.2, row: 5.4, label: "企都03" },
-            "aldebaran": { col: 14.5, row: 5.5, label: "艾爾帕蘭" },
-            "prontera": { col: 12.7, row: 10.2, label: "普隆德拉" },
-            "izlude": { col: 14.7, row: 10.2, label: "依斯魯得" },
-            "geffen": { col: 9.0, row: 9.5, label: "吉芬" },
-            "payon": { col: 17.5, row: 12.6, label: "斐揚" },
-            "morocc": { col: 10.7, row: 13.8, label: "夢羅克" },
-            "alberta": { col: 19.0, row: 15.6, label: "艾爾貝塔" },
-            "comodo": { col: 5.5, row: 15.1, label: "克魔島" },
-            "odin_tem": { col: 20.3, row: 2.1, label: "奧丁神殿" }
+            "yuno": { col: 11, row: 1, label: "朱諾城" },
+            "yuno_fild01": { col: 13, row: 4, label: "國界" },
+            "yuno_fild02": { col: 13, row: 2, label: "朱諾02" },
+            "yuno_fild03": { col: 12, row: 2, label: "火2" },
+            "yuno_fild04": { col: 11, row: 2, label: "朱諾04" },
+            "yuno_fild06": { col: 12, row: 1, label: "朱諾06" },
+            "yuno_fild08": { col: 13, row: 3, label: "學院" },
+            "yuno_fild09": { col: 14, row: 4, label: "朱諾09" },
+            "yuno_fild11": { col: 12, row: 3, label: "朱諾11" },
+            "hugel": { col: 14, row: 0, label: "毀葛" },
+            "einbroch": { col: 8, row: 4, label: "艾音布羅克" },
+            "einbech": { col: 9, row: 4, label: "艾音貝赫" },
+            "ein_fild04": { col: 8, row: 3, label: "艾音04" },
+            "ein_fild08": { col: 8, row: 5, label: "艾音08" },
+            "lighthalzen": { col: 6, row: 5, label: "企都" },
+            "lhz_fild01": { col: 6, row: 4, label: "企都01" },
+            "lhz_fild02": { col: 7, row: 4, label: "企都02" },
+            "lhz_fild03": { col: 7, row: 5, label: "企都03" },
+            "aldebaran": { col: 13, row: 5, label: "艾爾帕蘭" },
+            "prontera": { col: 13, row: 10, label: "普隆德拉" },
+            "izlude": { col: 15, row: 10, label: "依斯魯得" },
+            "geffen": { col: 9, row: 9, label: "吉芬" },
+            "payon": { col: 16, row: 12, label: "斐揚" },
+            "morocc": { col: 10, row: 14, label: "夢羅克" },
+            "alberta": { col: 18, row: 15, label: "艾爾貝塔" },
+            "comodo": { col: 5, row: 14, label: "克魔島" },
+            "odin_tem": { col: 18, row: 2, label: "奧丁神殿" }
         };
 
         const expTable = {
@@ -884,14 +921,13 @@
             return count === 1 ? base : `${base}_${count}`;
         }
 
-        // 解析 CSV 的 Coord 欄（相容舊像素座標、G:欄,列、以及地圖代碼）
         function resolveCoordSpec(rawCoord, regionName) {
             const str = String(rawCoord || "").trim();
-            // 1. 新格式：G:12,4 或 G:12.5,3
-            const gridMatch = str.match(/^G:\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)$/i);
+            // 1. 新格式：G:14,15
+            const gridMatch = str.match(/^G:\s*(\d+)\s*,\s*(\d+)$/i);
             if (gridMatch) {
-                const col = parseFloat(gridMatch[1]);
-                const row = parseFloat(gridMatch[2]);
+                const col = Math.max(0, Math.min(GRID_COLS - 1, parseInt(gridMatch[1])));
+                const row = Math.max(0, Math.min(GRID_ROWS - 1, parseInt(gridMatch[2])));
                 return {
                     key: `g_${col}_${row}`,
                     idCoordKey: `${col}_${row}`,
@@ -932,35 +968,18 @@
                 };
             }
 
-            // 4. 找不到對照時依照舊比例粗估對應方格
+            // 4. 新任務或未對照座標：對齊至最近的整數方格
             return {
                 key: `fallback_${x}_${y}`,
                 idCoordKey: `${x}_${y}`,
-                col: Math.max(0, Math.min(GRID_COLS - 1, (x / 1348) * GRID_COLS)),
-                row: Math.max(0, Math.min(17.5, (y / 741) * 14)),
+                col: Math.max(0, Math.min(GRID_COLS - 1, Math.round((x / 1348) * (GRID_COLS - 1)))),
+                row: Math.max(0, Math.min(GRID_ROWS - 1, Math.round((y / 741) * (GRID_ROWS - 1)))),
                 label: regionName.split(/[\s\n(]/)[0] || "任務"
             };
         }
 
-        /* === 2. 偵測底圖真實尺寸並啟動應用 === */
-        function detectMapAspectAndStart() {
-            const probe = new Image();
-            probe.onload = function () {
-                if (this.naturalWidth && this.naturalHeight) {
-                    MAP_H = Math.round(MAP_W * (this.naturalHeight / this.naturalWidth));
-                }
-                initializeApp();
-            };
-            probe.onerror = function () {
-                initializeApp();
-            };
-            probe.src = "map_background.jpg?t=" + new Date().getTime();
-        }
-
+        /* === 2. 載入 CSV 並切割方格 === */
         async function initializeApp() {
-            container.style.width = MAP_W + "px";
-            container.style.height = MAP_H + "px";
-
             try {
                 const response = await fetch(SHEET_CSV_URL + '?t=' + new Date().getTime());
                 if (!response.ok) throw new Error("HTTP error " + response.status);
@@ -974,7 +993,7 @@
                         processRawData(results.data);
                         generateTableData(); 
                         loadFromLocal();
-                        renderMap();
+                        renderMapGrid();
                         renderTable();
                         updatePrediction();
                         updateMapFitBtnLabel();
@@ -987,11 +1006,29 @@
             }
         }
 
+        function findFreeCell(prefCol, prefRow, occupiedSet) {
+            const key = (c, r) => `${c}_${r}`;
+            if (!occupiedSet.has(key(prefCol, prefRow))) return { col: prefCol, row: prefRow };
+            for (let radius = 1; radius <= 6; radius++) {
+                for (let dc = -radius; dc <= radius; dc++) {
+                    for (let dr = -radius; dr <= radius; dr++) {
+                        const nc = prefCol + dc;
+                        const nr = prefRow + dr;
+                        if (nc >= 0 && nc < GRID_COLS && nr >= 0 && nr < GRID_ROWS && !occupiedSet.has(key(nc, nr))) {
+                            return { col: nc, row: nr };
+                        }
+                    }
+                }
+            }
+            return { col: prefCol, row: prefRow };
+        }
+
         function processRawData(data) {
             let lastRegion = "", lastCoord = "", lastTaskName = "";
             let currentTaskObj = null; 
             const groupsMap = {}; 
             const usedIds = {};
+            const occupiedCells = new Set();
 
             data.forEach(row => {
                 if (row.Region && row.Region.trim() !== "") lastRegion = row.Region.trim();
@@ -1022,9 +1059,11 @@
                     }
 
                     if (!groupsMap[resolved.key]) {
+                        const free = findFreeCell(resolved.col, resolved.row, occupiedCells);
+                        occupiedCells.add(`${free.col}_${free.row}`);
                         groupsMap[resolved.key] = {
-                            x: Math.round(resolved.col * CELL_SIZE),
-                            y: Math.round(resolved.row * CELL_SIZE),
+                            col: free.col,
+                            row: free.row,
                             region: lastRegion,
                             label: resolved.label,
                             tasks: []
@@ -1048,13 +1087,13 @@
                 if (g.tasks.length === 1) {
                     const t = g.tasks[0];
                     mapNodes.push({
-                        type: "single", id: t.id, x: g.x, y: g.y, title: t.title, hint: t.hint, exp: t.exp,
+                        type: "single", id: t.id, col: g.col, row: g.row, title: t.title, hint: t.hint, exp: t.exp,
                         npcCoord: t.npcCoord, targetCoords: t.targetCoords, state: 0, region: g.region,
                         tileLabel: g.label, selected: t.selected
                     });
                 } else {
                     mapNodes.push({
-                        type: "group", id: `grp_${key}_${groupCounter++}`, x: g.x, y: g.y,
+                        type: "group", id: `grp_${key}_${groupCounter++}`, col: g.col, row: g.row,
                         title: g.region, tileLabel: g.label, region: g.region, tasks: g.tasks
                     });
                 }
@@ -1064,8 +1103,8 @@
         function generateTableData() {
             tableData.length = 0;
             mapNodes.forEach(node => {
-                if (node.type === "single") tableData.push({ region: node.region, id: node.id, name: node.title, exp: node.exp, state: node.state, hint: node.hint, isGroup: false, parentId: null, x: node.x, y: node.y, selected: node.selected });
-                else if (node.type === "group") node.tasks.forEach(task => tableData.push({ region: node.region, id: task.id, name: task.title, exp: task.exp, state: task.state, hint: task.hint, isGroup: true, parentId: node.id, x: node.x, y: node.y, selected: task.selected }));
+                if (node.type === "single") tableData.push({ region: node.region, id: node.id, name: node.title, exp: node.exp, state: node.state, hint: node.hint, isGroup: false, parentId: null, col: node.col, row: node.row, selected: node.selected });
+                else if (node.type === "group") node.tasks.forEach(task => tableData.push({ region: node.region, id: task.id, name: task.title, exp: task.exp, state: task.state, hint: task.hint, isGroup: true, parentId: node.id, col: node.col, row: node.row, selected: task.selected }));
             });
         }
 
@@ -1073,6 +1112,7 @@
         const mapPane = document.getElementById("map-pane");
         const scaleStage = document.getElementById("map-scale-stage");
         const container = document.getElementById("map-container");
+        const mapGrid = document.getElementById("map-grid");
         const scrollArea = document.getElementById("map-scroll-area");
         const popupHost = document.getElementById("map-popup-host");
         const hoverTip = document.getElementById("tile-hover-tip");
@@ -1135,7 +1175,7 @@
             const scaleX = paneW / MAP_W;
             const scaleY = paneH / MAP_H;
             mapScale = mapFitMode === "cover" ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
-            mapScale = Math.max(0.45, mapScale);
+            mapScale = Math.max(0.4, mapScale);
 
             scaleStage.style.width = Math.round(MAP_W * mapScale) + "px";
             scaleStage.style.height = Math.round(MAP_H * mapScale) + "px";
@@ -1159,13 +1199,13 @@
         }
         setInterval(updateServerCountdown, 1000); updateServerCountdown();
 
-        /* === 4. 地圖拖曳 & 雷達格線座標顯示 === */
+        /* === 4. 地圖拖曳 & 雷達格線顯示 === */
         let isDraggingMap = false;
         let didDragMap = false;
         let startDragX, startDragY, scrollLeftStart, scrollTopStart, dragClientStartX, dragClientStartY;
 
         scrollArea.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.node-container')) return;
+            if (e.target.closest('.has-quest')) return;
             isDraggingMap = true;
             didDragMap = false;
             dragClientStartX = e.clientX;
@@ -1183,9 +1223,9 @@
             const rect = container.getBoundingClientRect();
             const mapX = Math.max(0, (e.clientX - rect.left) / mapScale);
             const mapY = Math.max(0, (e.clientY - rect.top) / mapScale);
-            const gridCol = (mapX / CELL_SIZE).toFixed(1);
-            const gridRow = (mapY / CELL_SIZE).toFixed(1);
-            document.getElementById('radar-coords').innerText = `C ${gridCol.padStart(4, '0')} | R ${gridRow.padStart(4, '0')}`;
+            const col = Math.min(GRID_COLS - 1, Math.floor(mapX / CELL_W));
+            const row = Math.min(GRID_ROWS - 1, Math.floor(mapY / CELL_H));
+            document.getElementById('radar-coords').innerText = `C ${String(col).padStart(2, '0')} | R ${String(row).padStart(2, '0')}`;
 
             if (!isDraggingMap) return;
             if (Math.hypot(e.clientX - dragClientStartX, e.clientY - dragClientStartY) > 4) {
@@ -1331,469 +1371,4 @@
             const dailyStandardExp = tableData.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0); 
             const origDays = dailyStandardExp > 0 ? (reqExp / dailyStandardExp) : 1; document.getElementById("val-orig-days").innerText = origDays.toFixed(1) + "天";
             document.getElementById("val-orig-finish").innerText = formatDateTime(new Date(startTime.getTime() + origDays * 24 * 60 * 60 * 1000));
-            const expPerHour = elapsedHours > 0 ? (totalDoneExp / elapsedHours) : 0;
-            const leftHours = expPerHour > 0 ? (leftExp / expPerHour) : 0; document.getElementById("val-left-days").innerText = (leftHours / 24).toFixed(1) + "天";
-            const predFinishTime = new Date(now.getTime() + leftHours * 60 * 60 * 1000);
-            document.getElementById("val-pred-finish").innerText = formatDateTime(predFinishTime); document.getElementById("val-eff-finish").innerText = formatDateTime(predFinishTime);
-            document.getElementById("val-eff-pct").innerText = (origDays * 24 > 0 ? (expPerHour / (reqExp / (origDays * 24))) * 100 : 100).toFixed(1) + "%";
-            
-            const totalTasks = tableData.length; const completedTasks = tableData.filter(t => t.state === 3);
-            const completedCount = completedTasks.length; const taskPctVal = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
-            document.getElementById("progress-bar").style.width = taskPctVal.toFixed(1) + "%";
-            document.getElementById("progress-text").innerText = `${completedCount} / ${totalTasks} (${taskPctVal.toFixed(0)}%) ▾`;
-            document.getElementById("task-count-text").innerText = `完成任務: ${completedCount} / ${totalTasks}`;
-            document.getElementById("today-exp-hud").innerText = "+" + formatNumber(completedTasks.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0));
-            
-            const selectedTasks = tableData.filter(t => t.selected);
-            const selectedCount = selectedTasks.length;
-            const selectedExp = selectedTasks.reduce((sum, t) => sum + (isNaN(t.exp) ? 0 : t.exp), 0);
-            const selectedPct = reqExp > 0 ? ((selectedExp / reqExp) * 100).toFixed(3) : "0.000";
-            const statsEl = document.getElementById('selected-task-stats');
-            if (statsEl) statsEl.innerText = `${selectedCount} / ${totalTasks} (約目前等級 ${selectedPct}%)`;
-
-            saveToLocal();
-        }
-
-        window.resetAll = function() {
-            playCyberSfx('click'); if(confirm("⚠️ 戰術重置確認 ⚠️\n確定要重置所有進度嗎？")) { batchChangeState(0); showToast("進度已重置完成"); }
-        };
-        window.completeAll = function() {
-            playCyberSfx('complete'); if(confirm("✅ 全局完成確認 ✅\n將全部任務標記為已完成？")) { batchChangeState(3); showToast("已將所有任務標記完成！"); }
-        };
-        function batchChangeState(newState) {
-            tableData.forEach(t => { t.state = newState; if (!t.isGroup) { const n = mapNodes.find(n => n.id === t.id); if(n) n.state = newState; } else { const n = mapNodes.find(n => n.id === t.parentId); if(n) { const tk = n.tasks.find(tk => tk.id === t.id); if(tk) tk.state = newState; } } });
-            refreshDOMVisuals(); renderTable(); updatePrediction();
-        }
-
-        function getNodeStatusSummary(node) {
-            const list = node.type === "single" ? [node] : node.tasks;
-            const done = list.filter(t => t.state === 3).length;
-            const total = list.length;
-            let mainColor = colors[3]; // 預設全完綠
-            if (list.some(t => t.state === 0)) mainColor = colors[0];
-            else if (list.some(t => t.state === 1)) mainColor = colors[1];
-            else if (list.some(t => t.state === 2)) mainColor = colors[2];
-            return { done, total, allDone: done === total, hasPending: done < total, mainColor };
-        }
-
-        function updateTileVisual(node) {
-            const tile = document.getElementById(`tile-${node.id}`);
-            if (!tile) return;
-            const summary = getNodeStatusSummary(node);
-            tile.style.setProperty("--tile-color", summary.mainColor);
-            tile.classList.toggle("all-done", summary.allDone);
-            tile.classList.toggle("has-pending", summary.hasPending);
-
-            const badge = document.getElementById(`tile-badge-${node.id}`);
-            if (badge) {
-                badge.innerText = summary.allDone ? "✓ 完成" : `${summary.done}/${summary.total}`;
-                badge.style.color = summary.allDone ? "var(--cyber-green)" : "#fff";
-            }
-
-            const list = node.type === "single" ? [node] : node.tasks;
-            list.forEach(t => {
-                const dot = document.getElementById(`dot-${t.id}`);
-                if (dot) {
-                    dot.style.backgroundColor = colors[t.state];
-                    dot.style.boxShadow = `0 0 5px ${colors[t.state]}`;
-                }
-            });
-        }
-        
-        function refreshDOMVisuals() {
-            tableData.forEach(t => {
-                const newColor = colors[t.state];
-                const btn = document.getElementById(`btn-${t.id}`);
-                if (btn) { btn.innerText = `狀態切換：${states[t.state]}`; btn.style.backgroundColor = newColor; }
-                const badge = document.getElementById(`badge-${t.id}`);
-                if (badge) { badge.innerText = states[t.state]; badge.style.backgroundColor = newColor; }
-            });
-            mapNodes.forEach(updateTileVisual);
-            checkOffscreenTasks();
-        }
-
-        let checkOffscreenTicking = false;
-        function checkOffscreenTasks() {
-            if (!checkOffscreenTicking) {
-                window.requestAnimationFrame(() => {
-                    const scrollTop = scrollArea.scrollTop; const scrollBottom = scrollTop + scrollArea.clientHeight; const scrollLeft = scrollArea.scrollLeft; const scrollRight = scrollLeft + scrollArea.clientWidth;
-                    const offX = scaleStage.offsetLeft; const offY = scaleStage.offsetTop;
-                    let hasTop = false, hasBottom = false, hasLeft = false, hasRight = false;
-                    mapNodes.forEach(node => {
-                        let isCompleted = node.type === "single" ? (node.state === 3) : node.tasks.every(t => t.state === 3);
-                        if (!isCompleted) {
-                            const nx = offX + (node.x + CELL_SIZE * 0.5) * mapScale;
-                            const ny = offY + (node.y + CELL_SIZE * 0.5) * mapScale;
-                            if (ny < scrollTop) hasTop = true;
-                            if (ny > scrollBottom) hasBottom = true;
-                            if (nx < scrollLeft) hasLeft = true;
-                            if (nx > scrollRight) hasRight = true;
-                        }
-                    });
-                    document.getElementById("ind-top").classList.toggle("visible", hasTop); document.getElementById("ind-bottom").classList.toggle("visible", hasBottom); document.getElementById("ind-left").classList.toggle("visible", hasLeft); document.getElementById("ind-right").classList.toggle("visible", hasRight);
-                    checkOffscreenTicking = false;
-                });
-                checkOffscreenTicking = true;
-            }
-        }
-        scrollArea.addEventListener("scroll", checkOffscreenTasks, { passive: true });
-
-        window.jumpToNearestOffscreen = function(direction) {
-            playCyberSfx('radar'); const scrollTop = scrollArea.scrollTop; const scrollLeft = scrollArea.scrollLeft;
-            const offX = scaleStage.offsetLeft; const offY = scaleStage.offsetTop;
-            const incompleteNodes = mapNodes.filter(node => { return node.type === "single" ? (node.state !== 3) : node.tasks.some(t => t.state !== 3); });
-            let targetNode = null;
-            if (direction === 'top') targetNode = incompleteNodes.filter(n => offY + n.y * mapScale < scrollTop).sort((a,b) => b.y - a.y)[0];
-            else if (direction === 'bottom') targetNode = incompleteNodes.filter(n => offY + n.y * mapScale > scrollTop + scrollArea.clientHeight).sort((a,b) => a.y - b.y)[0];
-            else if (direction === 'left') targetNode = incompleteNodes.filter(n => offX + n.x * mapScale < scrollLeft).sort((a,b) => b.x - a.x)[0];
-            else if (direction === 'right') targetNode = incompleteNodes.filter(n => offX + n.x * mapScale > scrollLeft + scrollArea.clientWidth).sort((a,b) => a.x - b.x)[0];
-            if (targetNode) focusMapNode(targetNode.id);
-        };
-
-        window.changeState = function(taskId, isGroup, parentId, event) {
-            if(event) event.stopPropagation();
-            const taskRecord = tableData.find(t => t.id === taskId);
-            if (!taskRecord) return;
-            taskRecord.state = (taskRecord.state + 1) % states.length;
-            const newState = taskRecord.state;
-            const newColor = colors[newState];
-            playCyberSfx(newState === 3 ? 'complete' : 'click');
-
-            let targetNode = null;
-            if (!isGroup) {
-                targetNode = mapNodes.find(n => n.id === taskId);
-                if (targetNode) targetNode.state = newState;
-            } else {
-                targetNode = mapNodes.find(n => n.id === parentId);
-                if (targetNode) {
-                    const tk = targetNode.tasks.find(tk => tk.id === taskId);
-                    if (tk) tk.state = newState;
-                }
-            }
-
-            const popupBtn = document.getElementById(`btn-${taskId}`);
-            if (popupBtn) { popupBtn.innerText = `狀態切換：${states[newState]}`; popupBtn.style.backgroundColor = newColor; }
-            const badge = document.getElementById(`badge-${taskId}`);
-            if (badge) { badge.innerText = states[newState]; badge.style.backgroundColor = newColor; }
-            if (targetNode) updateTileVisual(targetNode);
-
-            updatePrediction();
-            checkOffscreenTasks(); 
-        };
-
-        /* === 5. 渲染正方形任務格與絲滑懸浮/點擊彈窗 === */
-        function showHoverTip(node) {
-            const tileEl = document.getElementById(`tile-${node.id}`);
-            if (!tileEl) return;
-            const summary = getNodeStatusSummary(node);
-            const list = node.type === "single" ? [node] : node.tasks;
-            const totalExp = list.reduce((s, t) => s + (t.exp || 0), 0);
-            const regionTitle = node.region.replace(/\n/g, ' ');
-            const namesPreview = list.map(t => `${t.state === 3 ? '✔' : '•'} ${t.title}`).slice(0, 3).join('<br>') + (list.length > 3 ? `<br>...等共 ${list.length} 項` : '');
-
-            hoverTip.innerHTML = `
-                <div style="font-weight:900; color:var(--cyber-cyan); margin-bottom:3px;">
-                    ${regionTitle}（${summary.done}/${summary.total}）
-                    <span style="color:var(--cyber-green); font-family:monospace; margin-left:6px;">+${formatNumber(totalExp)}</span>
-                </div>
-                <div style="color:#d8c8eb; line-height:1.4;">${namesPreview}</div>
-            `;
-
-            const pRect = mapPane.getBoundingClientRect();
-            const tRect = tileEl.getBoundingClientRect();
-            const tipW = hoverTip.offsetWidth || 180;
-            const tipH = hoverTip.offsetHeight || 60;
-
-            let left = (tRect.left - pRect.left) + tRect.width / 2 - tipW / 2;
-            left = Math.max(10, Math.min(left, pRect.width - tipW - 10));
-            let top = (tRect.top - pRect.top) - tipH - 8;
-            if (top < 10) top = (tRect.bottom - pRect.top) + 8;
-
-            hoverTip.style.left = Math.round(left) + "px";
-            hoverTip.style.top = Math.round(top) + "px";
-            hoverTip.classList.add("visible");
-        }
-
-        function hideHoverTip() {
-            hoverTip.classList.remove("visible");
-        }
-
-        function renderMap() {
-            container.innerHTML = "";
-            mapNodes.forEach(node => {
-                const wrapper = document.createElement("div");
-                wrapper.className = "node-container";
-                wrapper.id = `node-wrap-${node.id}`;
-                wrapper.style.left = node.x + "px";
-                wrapper.style.top = node.y + "px";
-                wrapper.style.width = CELL_SIZE + "px";
-                wrapper.style.height = CELL_SIZE + "px";
-
-                const summary = getNodeStatusSummary(node);
-                const list = node.type === "single" ? [node] : node.tasks;
-                const dotsHtml = list.map(t => `<div id="dot-${t.id}" class="mini-dot" style="background-color:${colors[t.state]}; box-shadow:0 0 5px ${colors[t.state]};"></div>`).join('');
-
-                wrapper.innerHTML = `
-                    <div id="tile-${node.id}" class="grid-tile ${summary.allDone ? 'all-done' : 'has-pending'}" style="--tile-color: ${summary.mainColor};">
-                        <span id="tile-badge-${node.id}" class="tile-badge" style="color:${summary.allDone ? 'var(--cyber-green)' : '#fff'};">${summary.allDone ? '✓ 完成' : `${summary.done}/${summary.total}`}</span>
-                        <span class="tile-label">${node.tileLabel}</span>
-                        <div class="mini-dots-container">${dotsHtml}</div>
-                    </div>
-                `;
-                container.appendChild(wrapper);
-
-                const tileEl = document.getElementById(`tile-${node.id}`);
-                tileEl.addEventListener("mouseenter", () => {
-                    if (activeNodeId !== node.id) showHoverTip(node);
-                });
-                tileEl.addEventListener("mouseleave", hideHoverTip);
-                tileEl.addEventListener("click", function(e) {
-                    e.stopPropagation();
-                    hideHoverTip();
-                    playCyberSfx('click');
-                    toggleNodePopup(node.id);
-                });
-            });
-        }
-
-        function buildPopupHtml(node) {
-            if (node.type === "single") {
-                const npcBtnHtml = node.npcCoord ? `<div class="coord-buttons" style="margin-bottom:10px;"><button class="copy-btn" onclick="copyCoord('${node.npcCoord.cmd}', event)">${node.npcCoord.label}</button></div>` : '';
-                const targetBtnsHtml = node.targetCoords.length > 0 ? `<div class="coord-buttons" style="margin-top:10px;">${node.targetCoords.map(c => `<button class="copy-btn" onclick="copyCoord('${c.cmd}', event)">${c.label}</button>`).join('')}</div>` : '';
-                return `
-                    <div id="popup-${node.id}" class="popup single-popup">
-                        <div class="popup-header"><span>⌖ ${node.region.replace(/\n/g, ' ')}｜戰術目標</span><span class="close-btn" onclick="closePopup(event)">✖</span></div>
-                        <div class="popup-body-scroll" style="padding:14px; display:flex; flex-direction:column;">
-                            <div class="info-title">
-                                <input type="checkbox" class="cyber-checkbox" id="cb-map-${node.id}" ${node.selected ? 'checked' : ''} onchange="toggleTaskSelection('${node.id}', this.checked, event)" style="margin-right:8px;">
-                                ${node.title}
-                            </div>
-                            <div class="task-exp">EXP 獎勵: +${formatNumber(node.exp)}</div>
-                            ${node.hint ? `<div class="task-hint">${node.hint}</div>` : ''}
-                            <div style="margin-top: auto;">
-                                ${npcBtnHtml}
-                                <button id="btn-${node.id}" class="status-btn" style="background-color: ${colors[node.state]}" onclick="changeState('${node.id}', false, null, event)">狀態切換：${states[node.state]}</button>
-                                ${targetBtnsHtml}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                const tasksHtml = node.tasks.map(task => {
-                    const npcBtnHtml = task.npcCoord ? `<div class="coord-buttons" style="margin-bottom:8px;"><button class="copy-btn" onclick="copyCoord('${task.npcCoord.cmd}', event)">${task.npcCoord.label}</button></div>` : '';
-                    const targetBtnsHtml = task.targetCoords.length > 0 ? `<div class="coord-buttons" style="margin-top:8px;">${task.targetCoords.map(c => `<button class="copy-btn" onclick="copyCoord('${c.cmd}', event)">${c.label}</button>`).join('')}</div>` : '';
-                    return `
-                        <div class="task-card">
-                            <div class="info-title">
-                                <input type="checkbox" class="cyber-checkbox" id="cb-map-${task.id}" ${task.selected ? 'checked' : ''} onchange="toggleTaskSelection('${task.id}', this.checked, event)" style="margin-right:8px;">
-                                ${task.title}
-                            </div>
-                            <div class="task-exp">EXP 獎勵: +${formatNumber(task.exp)}</div>
-                            ${task.hint ? `<div class="task-hint">${task.hint}</div>` : ''}
-                            <div style="margin-top: auto;">
-                                ${npcBtnHtml}
-                                <button id="btn-${task.id}" class="status-btn" style="background-color: ${colors[task.state]}" onclick="changeState('${task.id}', true, '${node.id}', event)">狀態切換：${states[task.state]}</button>
-                                ${targetBtnsHtml}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <div id="popup-${node.id}" class="popup group-popup">
-                        <div class="popup-header"><span>⌖ ${node.title.replace(/\n/g, ' ')}（共 ${node.tasks.length} 項任務）</span><span class="close-btn" onclick="closePopup(event)">✖</span></div>
-                        <div class="popup-body-scroll">
-                            <div class="task-grid">${tasksHtml}</div>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
-        function positionPopupForNode(nodeId) {
-            const popupEl = popupHost.querySelector('.popup');
-            const tileEl = document.getElementById(`tile-${nodeId}`);
-            if (!popupEl || !tileEl) return;
-
-            const pRect = mapPane.getBoundingClientRect();
-            const mRect = tileEl.getBoundingClientRect();
-            const mx = mRect.left - pRect.left;
-            const my = mRect.top - pRect.top;
-            const mw = mRect.width;
-            const mh = mRect.height;
-
-            const popW = popupEl.offsetWidth;
-            const popH = popupEl.offsetHeight;
-            const pad = 12;
-
-            let left = mx + mw + 10;
-            if (left + popW > pRect.width - pad) left = mx - popW - 10;
-            left = Math.max(pad, Math.min(left, pRect.width - popW - pad));
-
-            let top = my;
-            if (top + popH > pRect.height - pad) top = my + mh - popH;
-            top = Math.max(pad, Math.min(top, pRect.height - popH - pad));
-
-            popupEl.style.left = Math.round(left) + "px";
-            popupEl.style.top = Math.round(top) + "px";
-        }
-
-        function setActiveTileHighlight(nodeId) {
-            document.querySelectorAll('.grid-tile.tile-active').forEach(el => el.classList.remove('tile-active'));
-            document.querySelectorAll('.node-container.node-active').forEach(el => el.classList.remove('node-active'));
-            if (nodeId) {
-                const tile = document.getElementById(`tile-${nodeId}`);
-                const wrap = document.getElementById(`node-wrap-${nodeId}`);
-                if (tile) tile.classList.add('tile-active');
-                if (wrap) wrap.classList.add('node-active');
-            }
-        }
-
-        function toggleNodePopup(nodeId, openOnly = false) {
-            if (activeNodeId === nodeId && !openOnly) {
-                closePopup();
-                return;
-            }
-            const node = mapNodes.find(n => n.id === nodeId);
-            if (!node) return;
-
-            activeNodeId = nodeId;
-            setActiveTileHighlight(nodeId);
-            popupHost.innerHTML = buildPopupHtml(node);
-            positionPopupForNode(nodeId);
-        }
-
-        window.closePopup = function(event) {
-            if (event) event.stopPropagation();
-            if (activeNodeId && event) playCyberSfx('click');
-            popupHost.innerHTML = "";
-            setActiveTileHighlight(null);
-            activeNodeId = null;
-        };
-
-        window.focusMapNode = function(nodeId) {
-            playCyberSfx('radar');
-            const node = mapNodes.find(n => n.id === nodeId);
-            if (!node) return;
-            const targetX = scaleStage.offsetLeft + (node.x + CELL_SIZE * 0.5) * mapScale;
-            const targetY = scaleStage.offsetTop + (node.y + CELL_SIZE * 0.5) * mapScale;
-            scrollArea.scrollTo({
-                left: Math.max(0, targetX - (scrollArea.clientWidth / 2)),
-                top: Math.max(0, targetY - (scrollArea.clientHeight / 2)),
-                behavior: 'smooth'
-            });
-            setTimeout(() => toggleNodePopup(node.id, true), 180);
-            const tile = document.getElementById(`tile-${node.id}`);
-            if (tile) {
-                const oldPing = tile.querySelector('.radar-ping');
-                if (oldPing) oldPing.remove();
-                const ping = document.createElement('div');
-                ping.className = 'radar-ping';
-                tile.appendChild(ping);
-                setTimeout(() => ping.remove(), 3100);
-            }
-        };
-
-        window.setFilterState = function(stateVal, el) { playCyberSfx('click'); currentFilter = stateVal; document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active')); el.classList.add('active'); renderTable(); };
-        window.handleFilterChange = function() { searchQuery = document.getElementById('task-search-input').value.trim().toLowerCase(); renderTable(); };
-
-        function renderTable() {
-            let html = "";
-            const filteredTasks = tableData.filter(task => {
-                const matchState = (currentFilter === 'all') || (String(task.state) === currentFilter);
-                const matchQuery = !searchQuery || task.name.toLowerCase().includes(searchQuery) || task.region.toLowerCase().includes(searchQuery) || (task.hint && task.hint.toLowerCase().includes(searchQuery)); 
-                return matchState && matchQuery;
-            });
-
-            for (let i = 0; i < filteredTasks.length; i++) {
-                const task = filteredTasks[i];
-                const targetNodeId = task.isGroup ? task.parentId : task.id;
-                html += `<tr onclick="focusMapNode('${targetNodeId}')" title="點擊定位到地圖方格">`;
-                
-                if (i === 0 || filteredTasks[i - 1].region !== task.region) {
-                    let rowspan = 1;
-                    for (let j = i + 1; j < filteredTasks.length; j++) {
-                        if (filteredTasks[j].region === task.region) rowspan++;
-                        else break;
-                    }
-                    html += `<td class="region-cell" rowspan="${rowspan}" style="border-left:1px solid rgba(181, 23, 255, 0.25);">${task.region}</td>`;
-                }
-                
-                html += `<td style="text-align: center;" onclick="event.stopPropagation()"><input type="checkbox" class="cyber-checkbox" id="cb-tbl-${task.id}" ${task.selected ? 'checked' : ''} onchange="toggleTaskSelection('${task.id}', this.checked, event)"></td>
-                         <td class="table-task-name">${task.name}</td>
-                         <td style="text-align: center;"><span id="badge-${task.id}" class="status-badge" style="background-color: ${colors[task.state]}" onclick="changeState('${task.id}', ${task.isGroup}, '${task.parentId}', event)">${states[task.state]}</span></td>
-                         <td class="exp-cell">+${formatNumber(task.exp)}</td></tr>`;
-            }
-            tbody.innerHTML = html || `<tr><td colspan="5" style="padding:25px; color:var(--text-muted);">無符合條件的任務資料</td></tr>`;
-        }
-
-        scrollArea.addEventListener("click", function(e) {
-            if (didDragMap) return;
-            if (e.target.closest('.node-container') || e.target.closest('.popup')) return;
-            if (activeNodeId) closePopup();
-        });
-
-        window.copyCoord = function(text, event) {
-            if(event) event.stopPropagation(); playCyberSfx('click');
-            if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(() => { showToast(`已複製座標：${text}`); }).catch(() => fallbackCopy(text)); } else { fallbackCopy(text); }
-        };
-        function fallbackCopy(text) {
-            const textArea = document.createElement("textarea"); textArea.value = text; textArea.style.position = "fixed"; textArea.style.left = "-9999px"; document.body.appendChild(textArea); textArea.focus(); textArea.select();
-            try { document.execCommand('copy'); showToast(`已複製座標：${text}`); } catch (err) {} document.body.removeChild(textArea);
-        }
-
-        container.addEventListener("contextmenu", function(e) { e.preventDefault(); });
-
-        document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape" && activeNodeId) closePopup();
-        });
-
-        document.onkeydown = function (e) {
-            if (e.keyCode == 123) { return false; } 
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } 
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } 
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } 
-            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } 
-        };
-
-        // === 背景動態電競粒子網路 ===
-        const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas); resizeCanvas();
-
-        const pColors = ['#ff1e56', '#b517ff', '#00ff87'];
-        function createParticles() { 
-            particles = []; 
-            for (let i = 0; i < 38; i++) { 
-                particles.push({ 
-                    x: Math.random() * canvas.width, y: Math.random() * canvas.height, 
-                    vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6, 
-                    r: Math.random() * 2 + 1, c: pColors[i % pColors.length] 
-                }); 
-            } 
-        }
-        
-        function animateParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = 0; i < particles.length; i++) {
-                let p = particles[i];
-                p.x += p.vx; p.y += p.vy;
-                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fillStyle = p.c; ctx.shadowBlur = 8; ctx.shadowColor = p.c; ctx.fill();
-            }
-            requestAnimationFrame(animateParticles);
-        }
-        
-        createParticles();
-        animateParticles();
-
-        detectMapAspectAndStart();
-    </script>
-    <script src="nav.js"></script>
-</body>
-</html>
+            const
